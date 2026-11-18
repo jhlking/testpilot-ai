@@ -1,6 +1,9 @@
-/* TestPilot AI 前端逻辑 —— 原生 JS，无构建依赖 */
+/* TestPilot AI 前端逻辑 —— 原生 JS，无构建依赖
+   本地运行走后端 API；GitHub Pages 静态部署自动降级为内嵌 JS 引擎（standalone.js）。*/
 const API = '';
-let docs = [];
+// 仅在 GitHub Pages（github.io 域名）启用内嵌引擎；本地运行走 Python 后端
+const STANDALONE = location.hostname.endsWith('github.io') && (typeof generate === 'function');
+let docs = STANDALONE ? CORPUS.map(d => ({...d})) : [];
 let sessionCases = 0, guardCount = 0, confSum = 0, confCount = 0;
 let typeCount = {};
 
@@ -42,6 +45,15 @@ async function api(path, options) {
 }
 
 async function init() {
+  if (STANDALONE) {
+    // 静态演示模式：本地计算统计
+    document.getElementById('mDocs').textContent = CORPUS.length;
+    const cats = {};
+    CORPUS.forEach(d => cats[d.category] = (cats[d.category] || 0) + 1);
+    renderCatChart(cats);
+    document.querySelector('.engine-pill').innerHTML = '<span class="dot"></span> 本地 RAG 引擎就绪';
+    return;
+  }
   try {
     const stats = await api('/api/stats');
     document.getElementById('mDocs').textContent = stats.total_documents;
@@ -167,10 +179,15 @@ async function generateCases() {
   if (!requirement) { alert('请先填写需求描述'); return; }
   btn.disabled = true; btn.textContent = '检索知识库并生成中…';
   try {
-    const result = await api('/api/generate', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requirement, title })
-    });
+    let result;
+    if (STANDALONE) {
+      result = generate(requirement, title);
+    } else {
+      result = await api('/api/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requirement, title })
+      });
+    }
     renderEvidence(result.evidence);
     renderCases(result);
   } catch (e) {
