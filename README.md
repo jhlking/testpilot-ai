@@ -8,6 +8,8 @@
 > 让每一条测试用例都有据可查 —— 从机制上抑制 AI 幻觉
 > *Every test case is evidence-grounded — suppressing AI hallucinations by design*
 
+**[🌐 在线演示 Live Demo](https://jhlking.github.io/testpilot-ai/)** — 纯前端版本，打开即可体验完整 RAG 生成流程（无需安装）
+
 [![Python](https://img.shields.io/badge/后端-Python%20标准库-3776ab?style=flat-square)](#技术栈--tech-stack)
 [![Zero Dep](https://img.shields.io/badge/依赖-零第三方库-3fb950?style=flat-square)](#技术栈--tech-stack)
 [![BM25](https://img.shields.io/badge/检索-BM25-7c3aed?style=flat-square)](#rag-防幻觉设计--anti-hallucination)
