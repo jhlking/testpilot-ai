@@ -37,7 +37,33 @@ class TestRetrieval(unittest.TestCase):
         cls.engine = RAGEngine()
 
     def test_corpus_loaded(self):
-        self.assertEqual(self.engine.stats["total_documents"], 15)
+        # v2 企业知识库：29 篇（原 15 + 新增 14）
+        self.assertGreaterEqual(self.engine.stats["total_documents"], 29)
+
+    def test_enterprise_categories_present(self):
+        cats = self.engine.stats["categories"]
+        for c in ("接口测试", "安全测试", "性能测试", "测试流程", "需求样例"):
+            self.assertIn(c, cats)
+            self.assertGreater(cats[c], 0)
+
+    def test_api_idempotency_retrieval(self):
+        results = self.engine.retrieve("支付接口 幂等键 重复提交 重复扣款", top_k=3)
+        ids = [r["id"] for r in results]
+        self.assertIn("KB-API-002", ids)
+
+    def test_security_retrieval(self):
+        results = self.engine.retrieve("SQL注入 XSS 越权 安全测试", top_k=3)
+        self.assertEqual(results[0]["id"], "KB-SEC-001")
+
+    def test_performance_retrieval(self):
+        results = self.engine.retrieve("性能测试 TPS 响应时间 并发用户", top_k=3)
+        ids = [r["id"] for r in results]
+        self.assertIn("KB-PERF-001", ids)
+
+    def test_gate_retrieval(self):
+        results = self.engine.retrieve("质量门禁 发布标准 通过率 覆盖率", top_k=3)
+        ids = [r["id"] for r in results]
+        self.assertIn("KB-PROC-003", ids)
 
     def test_login_retrieval_top_hit(self):
         results = self.engine.retrieve("用户登录 密码 5次错误 锁定", top_k=3)
@@ -113,9 +139,33 @@ class TestGeneration(unittest.TestCase):
     def test_case_structure_complete(self):
         r = self.generator.generate("接口鉴权 token 权限校验", "鉴权")
         for c in r["cases"]:
-            for key in ("id", "type", "title", "precondition", "steps", "expected", "citations", "confidence"):
+            for key in ("id", "type", "title", "precondition", "steps", "expected", "citations",
+                        "confidence", "priority", "review_status", "execution_status"):
                 self.assertIn(key, c)
             self.assertGreater(len(c["steps"]), 0)
+
+    def test_enterprise_case_types(self):
+        """支付幂等需求应触发幂等性用例，性能需求应触发性能用例。"""
+        r1 = self.generator.generate(
+            "支付下单接口，幂等键重复提交返回同一订单，不重复扣款", "支付")
+        self.assertIn("idempotency", {c["type"] for c in r1["cases"]})
+
+        r2 = self.generator.generate(
+            "指标计算延迟不超过90秒，并发查询TPS要求500", "性能")
+        self.assertIn("performance", {c["type"] for c in r2["cases"]})
+
+        r3 = self.generator.generate(
+            "订单支付后扣减库存，退款后对账，重跑结果一致", "数据一致性")
+        self.assertIn("consistency", {c["type"] for c in r3["cases"]})
+
+    def test_priority_mix_present(self):
+        r = self.generator.generate("登录密码校验，连续5次错误锁定", "登录")
+        self.assertIn("priority_mix", r["meta"])
+        self.assertTrue(r["meta"]["priority_mix"])
+
+    def test_engine_version_reported(self):
+        r = self.generator.generate("用户登录 密码校验", "登录")
+        self.assertEqual(r["meta"]["engine_version"], "2.0.0")
 
 
 if __name__ == "__main__":

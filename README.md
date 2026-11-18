@@ -1,196 +1,445 @@
 <div align="center">
 
-# TestPilot AI · 智测方舟
+# TestPilot Enterprise · 智测方舟企业版
 
-### 基于 RAG 的测试用例智能生成与溯源平台
-### RAG-Powered Test Case Generation & Traceability Platform
+**企业级智能测试管理平台 —— 从需求到缺陷的测试全生命周期闭环，内置可溯源的 RAG 用例生成引擎**
 
-> 让每一条测试用例都有据可查 —— 从机制上抑制 AI 幻觉
-> *Every test case is evidence-grounded — suppressing AI hallucinations by design*
+![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)
+![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
+![Tests](https://img.shields.io/badge/tests-58%20passed-success)
+![Modules](https://img.shields.io/badge/modules-12-6366f1)
+![i18n](https://img.shields.io/badge/i18n-zh%20%7C%20en%20%7C%20ja-22d3ee)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
-**[🌐 在线演示 Live Demo](https://jhlking.github.io/testpilot-ai/)** — 纯前端版本，打开即可体验完整 RAG 生成流程（无需安装）
+[简体中文](README.md) · [English](README.en.md) · [日本語](README.ja.md)
 
-[![Python](https://img.shields.io/badge/后端-Python%20标准库-3776ab?style=flat-square)](#技术栈--tech-stack)
-[![Zero Dep](https://img.shields.io/badge/依赖-零第三方库-3fb950?style=flat-square)](#技术栈--tech-stack)
-[![BM25](https://img.shields.io/badge/检索-BM25-7c3aed?style=flat-square)](#rag-防幻觉设计--anti-hallucination)
-[![Tests](https://img.shields.io/badge/测试-15%20passed-success?style=flat-square)](#测试报告--test-report)
-[![License](https://img.shields.io/badge/许可-MIT-green?style=flat-square)](#许可--license)
+[**🔗 在线演示**](https://jhlking.github.io/testpilot-ai/) · [核心能力](#-核心能力矩阵) · [架构设计](#-系统架构) · [快速开始](#-快速开始) · [API 文档](#-rest-api-文档) · [v2.0 更新](#-v200-更新日志)
 
 </div>
 
 ---
 
-## 项目简介 · Overview
+## 📌 这是什么
 
-**中文**
+TestPilot Enterprise 不是一个"AI 生成几条测试用例"的玩具 Demo，而是一套**可直接运行、覆盖测试团队真实工作流**的企业级 QA 管理平台：
 
-TestPilot AI 是一个面向软件测试场景的智能用例生成平台。它将 **RAG（检索增强生成）** 技术引入测试领域：当用户输入需求描述时，系统先从内置的测试知识库中检索相关证据，再**仅基于这些证据**生成测试用例。每条用例都携带引用的知识库原文（KB-ID + 内容）与量化置信度，点击即可展开核对依据。
+> **项目 → 需求 → 用例 → 测试计划 → 测试执行 → 缺陷 → 质量报告 → 审计**
+> 全链路数据打通，每一步都有质量指标与操作留痕。
 
-与直接调用大模型"凭空生成"不同，TestPilot 把「幻觉抑制」做成了一条可验证的工程链路：**无证据不生成，低置信度自动标记人工复核**。整个系统用纯 Python 标准库实现，无需 GPU、无需 API Key、无需安装依赖，离线即可运行，结果可复现。
+它同时解决一个 AI 落地中最现实的问题：**大模型编造测试用例**。平台内置的生成引擎采用检索增强生成（RAG），**每一条用例都必须绑定知识库原文作为证据**；证据不足时，系统直接拒绝生成，而不是编造。
 
-**English**
-
-TestPilot AI is an intelligent test-case generation platform for software testing. It brings **RAG (Retrieval-Augmented Generation)** into the testing domain: given a requirement, the system first retrieves relevant evidence from a built-in testing knowledge base, then generates test cases **strictly grounded in that evidence**. Every case carries its source citation (KB-ID + full text) and a quantified confidence score — click to expand and verify the basis.
-
-Unlike free-form LLM generation, TestPilot turns "hallucination suppression" into a verifiable engineering pipeline: **no evidence, no generation; low confidence, automatic flag for review**. Built entirely with the Python standard library — no GPU, no API key, no third-party packages, fully offline and reproducible.
+**零第三方依赖**：后端只用 Python 标准库（`http.server` + `sqlite3`），前端原生 JavaScript。评审者 `clone` 后一条命令即可运行，不受环境、API Key、网络限制。
 
 ---
 
-## 核心特性 · Features
+## 🚀 在线演示
 
-- **需求 → 用例生成**：输入功能需求，自动生成正向、边界值、格式校验、异常、安全、业务流程等多类型用例
-- **证据溯源**：每条用例绑定知识库原文，引用可展开核对，杜绝"无中生有"
-- **置信度量化**：基于 BM25 绝对分数与相对分数双指标，置信度可视化
-- **幻觉闸门**：无关输入或证据不足时直接拒绝生成（而非编造），并给出明确原因
-- **人工复核标记**：弱证据用例自动标记 `needs_review`，融入测试评审流程
-- **知识库浏览与检索**：15 篇权威测试知识文档，支持 BM25 语义检索与关键词过滤
-- **用例导出**：支持 Markdown / JSON 导出，可直接进入测试管理与缺陷跟踪流程
-- **高级可视化界面**：科技感深色主题单页应用，含仪表盘、图表、实时统计
+| 入口 | 地址 | 说明 |
+|---|---|---|
+| 主应用 | https://jhlking.github.io/testpilot-ai/ | 完整前端 + 浏览器内数据持久化 |
+| 一键生成演示 | [.../?gen=pay](https://jhlking.github.io/testpilot-ai/?gen=pay) | 自动填充"支付下单接口"并生成用例 |
+| 英文界面 | [.../?lang=en](https://jhlking.github.io/testpilot-ai/?lang=en) | 界面切换 English |
+| 日文界面 | [.../?lang=ja](https://jhlking.github.io/testpilot-ai/?lang=ja) | 界面切换 日本語 |
 
----
-
-## 技术栈 · Tech Stack
-
-| 层次 Layer | 技术 Technology | 说明 Detail |
-| --- | --- | --- |
-| 编程语言 Language | Python 3 | 仅用标准库，零第三方依赖 |
-| 检索引擎 Retrieval | 自研 BM25 | 中文 bigram + 英文分词，OKAPI BM25 打分 |
-| 生成方式 Generation | 抽取式 / 证据驱动 | 模板化映射，非自由生成，字段可溯源 |
-| 知识存储 Knowledge | JSON 语料库 | 15 篇带稳定 ID 的测试知识文档 |
-| 后端服务 Backend | `http.server` | ThreadingHTTPServer，RESTful API |
-| 前端 Frontend | 原生 HTML/CSS/JS | 单页应用，零构建，无任何 CDN 依赖 |
-| 测试 Testing | `unittest` | 15 个单元测试，覆盖检索与防幻觉 |
-| 部署 Deployment | Python 直接运行 / GitHub Pages | 本地零配置启动 |
-
-**为什么这样选**：整个技术栈刻意保持"零依赖 + 可离线"，目的是让评审者 `git clone` 后一条命令即可运行并看到完整效果，不被环境配置、API Key 或网络问题干扰——这对于课程考核与评奖演示至关重要。
+> 演示版为纯前端模式（数据存于浏览器 localStorage），支持新建、编辑、评审、执行、缺陷流转等全部交互，刷新不丢失。本地运行时自动切换为 SQLite 服务端模式。
 
 ---
 
-## RAG 防幻觉设计 · Anti-Hallucination
+## 🧩 核心能力矩阵
 
-系统的核心不是"让 AI 更聪明"，而是**让 AI 的每一步输出都可被证据约束和检验**：
+### 测试管理闭环
 
+| 模块 | 核心能力 | 关键设计 |
+|---|---|---|
+| **质量工作台** | 跨项目 KPI、质量门禁、执行趋势、缺陷分布、项目健康度 | 一屏看清"能不能发版" |
+| **项目管理** | 多项目并行、优先级、负责人、健康度 | 项目级级联删除，数据不残留 |
+| **需求管理** | 需求编号、来源、优先级、评审状态、用例追溯 | 需求覆盖率是核心质量指标 |
+| **用例库** | 9 类用例、评审流转、执行状态、知识溯源、CSV 导出 | 待评审 / 已评审 / 已通过三态 |
+| **测试计划** | 范围、周期、负责人、用例编排、进度与通过率 | 计划进度 = 已执行 / 计划用例 |
+| **测试执行** | 逐条记录实际结果、失败一键转缺陷 | 执行即回写用例状态 |
+| **缺陷管理** | 看板式流转、严重程度、生命周期 | 新建 → 修复待验证 → 重开 / 关闭 |
+| **RAG 生成台** | 需求检索、证据展示、用例生成、批量入库 | 四道防幻觉闸门 |
+| **测试知识库** | 29 篇企业测试知识、分类检索、稳定 KB-ID | 用例引用可回溯原文 |
+| **质量报告** | 门禁达成、类型分布、缺陷分布、指标汇总、PDF | 发布决策依据 |
+| **审计日志** | 全量写操作留痕（操作人/对象/时间/IP） | 满足合规追溯 |
+| **系统设置** | 语言、角色、引擎、存储模式、团队、数据重置 | 演示与运维入口 |
+
+### 多语言支持（zh / en / ja）
+
+界面框架文案全量三语，切换即时生效并记忆到 `localStorage`。业务数据（项目名、用例内容）保持原语言——符合企业系统惯例。
+
+- 顶栏语言切换器：`中 / EN / 日`
+- URL 深链参数：`?lang=en`、`?lang=ja`
+- 新增语言只需在 `web/i18n.js` 追加一个字典对象
+
+### 用例生成引擎
+
+支持 9 类测试用例，依据需求语义自动组合：
+
+`正向功能` · `异常/反向` · `边界值` · `格式校验` · `安全性` · `业务流程` · `幂等性` · `性能时效` · `数据一致性`
+
+---
+
+## 🛡️ 为什么它不是"又一个 AI 生成器"：四道防幻觉闸门
+
+| # | 机制 | 实现 |
+|---|---|---|
+| **01** | **无证据不生成** | 用**绝对 BM25 分数**做闸门（而非相对分）。低于阈值直接拒绝，返回明确的 refusal 说明 |
+| **02** | **引用可回溯** | 每条用例绑定 `citations`：知识库 KB-ID + 原文，界面可展开核对 |
+| **03** | **置信度量化** | BM25 归一化评分，逐条显示；平均置信度进入仪表盘 |
+| **04** | **低置信度人工复核** | 低于阈值的用例自动标记 `needs_review`，进入评审队列 |
+
+> **一个真实的设计教训**：v1 曾用"相对分 = score / max_score"作为拒绝闸门，导致 top-1 恒为 1.0，乱码也能通过。单元测试抓到了这个真实缺陷，v2 已改为绝对分数闸门并补充回归测试。这段过程本身就是"测试驱动开发"的最佳佐证。
+
+---
+
+## 🏗️ 系统架构
+
+```mermaid
+flowchart TB
+    subgraph FE["前端 SPA · 原生 JS（零构建）"]
+        UI["12 个业务模块"]
+        LANG["i18n · zh / en / ja"]
+        CHART["原生 SVG 图表"]
+    end
+
+    subgraph BE["后端 · Python 3 标准库"]
+        API["REST 路由层 · http.server"]
+        SVC["业务层 · 指标聚合 / 质量门禁 / 审计"]
+        RAG["BM25-RAG 检索引擎"]
+        GEN["证据驱动用例生成器"]
+    end
+
+    subgraph DATA["数据层"]
+        DB[("SQLite<br/>8 类实体")]
+        KB[("测试知识库<br/>29 篇 / 稳定 KB-ID")]
+    end
+
+    UI --> API
+    LANG --> UI
+    CHART --> UI
+    API --> SVC
+    API --> RAG
+    RAG --> GEN
+    RAG --> KB
+    SVC --> DB
+    GEN --> API
 ```
-需求输入
-   ↓
-① 文本分词（中文 bigram + 英文词）→ 查询向量
-   ↓
-② BM25 检索知识库 → Top-K 证据块 + 绝对分数
-   ↓
-③ 闸门：最佳证据绝对分 < 阈值？ → 是 → 拒绝生成（不编造）
-   ↓ 否
-④ 抽取式生成：从证据中映射测试点 → 用例字段
-   ↓
-⑤ 每条用例附 citations（KB-ID + 原文）+ confidence + needs_review
-   ↓
-溯源输出（可点开原文逐条核对）
-```
 
-四道防线：
+**分层职责**
 
-| # | 机制 Mechanism | 实现 Implementation |
-| --- | --- | --- |
-| 1 | **无证据不生成** | 绝对 BM25 分数低于 `MIN_ABS_SCORE` 时返回拒绝，绝不编造 |
-| 2 | **引用可回溯** | 每条用例的 `citations` 字段绑定知识库文档 ID 与完整原文 |
-| 3 | **置信度量化** | 绝对分做闸门、相对分做置信度，双层指标避免"矬子里拔将军" |
-| 4 | **低分人工复核** | 置信度低于 `REVIEW_THRESHOLD` 的用例自动标记 `needs_review` |
-
-> 开发中单元测试曾捕获一个真实缺陷：用相对分 `score/max_score` 做拒绝闸门时，top-1 恒为 1.0，导致乱码输入也会被接受。已修正为绝对分数闸门并补测——这正是"测试驱动"价值的体现。
+| 层 | 文件 | 职责 |
+|---|---|---|
+| 数据层 | `engine/store.py` | SQLite 建表、8 类实体 CRUD、级联删除、指标聚合、CSV 导出 |
+| 演示数据 | `engine/seed.py` | 3 个项目 / 7 需求 / 15 用例 / 3 计划 / 11 执行 / 5 缺陷 / 6 审计 |
+| 检索层 | `engine/rag.py` | 中文 bigram + 英文分词、BM25 打分、绝对分数闸门 |
+| 生成层 | `engine/generator.py` | 信号识别、9 类用例模板、证据绑定、置信度聚合 |
+| 服务层 | `server.py` | REST 路由、静态资源、鉴权头、执行与缺陷联动 |
+| 表现层 | `web/` | 12 个视图、i18n、图表、抽屉/弹窗/Toast |
+| 静态演示 | `tools/gen_standalone.py` | 从语料与种子数据生成 `standalone.js`，保证前后端一致 |
 
 ---
 
-## 快速开始 · Quick Start
+## 🧰 技术栈
+
+| 类别 | 选型 | 说明 |
+|---|---|---|
+| 语言 | Python 3.8+ | 后端与测试 |
+| Web 服务 | `http.server.ThreadingHTTPServer` | 标准库，无需 Flask/FastAPI |
+| 数据库 | `sqlite3` | 标准库，文件型，开箱即用 |
+| 检索引擎 | 自研 BM25 | K1=1.5, B=0.75，中文 bigram + 英文词 |
+| 前端 | 原生 HTML/CSS/JavaScript | 零框架、零构建、零 CDN |
+| 图表 | 原生 SVG / conic-gradient | 无图表库依赖 |
+| 测试 | `unittest` | 58 个用例，含 API 集成测试 |
+| 国际化 | 自研字典 + `data-i18n` | 3 种语言，localStorage 记忆 |
+| 部署 | 本地 / GitHub Pages | 服务端模式 + 纯静态模式双形态 |
+
+---
+
+## ⚡ 快速开始
+
+### 1. 克隆并启动
 
 ```bash
-# 克隆仓库 / Clone
 git clone https://github.com/jhlking/testpilot-ai.git
 cd testpilot-ai
 
-# 一键启动（零依赖，无需 pip install）/ Start
+# 无需 pip install，无需虚拟环境
 python server.py
-# 打开 http://127.0.0.1:8765
-
-# 运行测试套件 / Run tests
-python -m unittest discover -s tests -v
 ```
 
-> 需要 Python 3.8+。系统自带的 Python 即可，不需要安装任何库。
+打开 **http://127.0.0.1:8765** —— 首次启动会自动建库并灌入企业演示数据。
 
----
+```
+==============================================================
+  TestPilot Enterprise  ·  企业级测试管理平台
+==============================================================
+  版本:  v2.0.0
+  引擎:  BM25-RAG v2（纯 Python 标准库，离线可用）
+  存储:  SQLite 持久化  |  知识库: 29 篇
+  演示:  3 项目 / 7 需求 / 15 用例
+  服务:  http://127.0.0.1:8765
+==============================================================
+```
 
-## 使用示例 · Usage
-
-1. 打开 `http://127.0.0.1:8765`，点击「用例生成」
-2. 点示例按钮（登录 / 购物车 / 文件上传）或输入自己的需求
-3. 点击「生成测试用例」——系统会先展示检索到的证据，再生成用例
-4. 每条用例可点击「依据来源」展开知识库原文核对
-5. 顶部可导出 Markdown / JSON
-
-API 调用示例：
+### 2. 运行测试
 
 ```bash
+python -m unittest discover -s tests -v
+# Ran 58 tests ... OK
+```
+
+### 3. 调用 API
+
+```bash
+# 生成用例
 curl -X POST http://127.0.0.1:8765/api/generate \
   -H "Content-Type: application/json" \
-  -d '{"title":"登录功能","requirement":"用户名6-20位，密码8-20位，连续5次错误锁定30分钟"}'
+  -d '{"title":"支付下单","requirement":"创建支付单，金额大于0，幂等键重复提交返回同一订单，签名错误返回401"}'
+
+# 查看质量仪表盘
+curl http://127.0.0.1:8765/api/dashboard
+
+# 导出用例 CSV
+curl -o cases.csv http://127.0.0.1:8765/api/cases/export.csv
 ```
+
+### 4. 环境变量
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `PORT` | `8765` | 服务端口 |
+| `TP_DB_PATH` | `data/testpilot.db` | 数据库路径（测试隔离用） |
 
 ---
 
-## 测试报告 · Test Report
+## 📖 REST API 文档
 
-```text
-Ran 15 tests in 0.008s
+所有写操作支持 `X-Actor` 请求头标识操作者，并自动写入审计日志。
 
+### 系统与引擎
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/health` | 健康检查（版本、知识库规模、存储模式） |
+| GET | `/api/stats` | 知识库统计与分类分布 |
+| GET | `/api/documents` | 知识库全部文档 |
+| POST | `/api/search` | BM25 检索 `{query, top_k}` |
+| POST | `/api/generate` | 用例生成 `{title, requirement}` |
+| GET | `/api/dashboard?project_id=` | 质量仪表盘（门禁、趋势、分布） |
+
+### 实体 CRUD
+
+`{entity}` ∈ `projects` · `users` · `requirements` · `cases` · `plans` · `executions` · `defects` · `audit-logs`
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/{entity}` | 列表，支持 `?project_id=`、`?plan_id=`、`?status=`、`?severity=`、`?limit=` |
+| POST | `/api/{entity}` | 新建（自动分配 ID、写审计） |
+| GET | `/api/{entity}/{id}` | 详情 |
+| PATCH | `/api/{entity}/{id}` | 局部更新 |
+| DELETE | `/api/{entity}/{id}` | 删除（项目级联清理下属数据） |
+
+### 业务动作
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/plans/{id}/detail` | 计划详情（用例、执行记录、进度与通过率） |
+| POST | `/api/execute` | 记录执行结果，失败可自动创建缺陷 |
+| GET | `/api/cases/export.csv` | 用例清单 CSV 导出（UTF-8 BOM，Excel 可直接打开） |
+
+<details>
+<summary><b>示例：记录一次执行并自动转缺陷</b></summary>
+
+```bash
+curl -X POST http://127.0.0.1:8765/api/execute \
+  -H "Content-Type: application/json" \
+  -H "X-Actor: zhang.min" \
+  -d '{
+    "case_id": "TC-007",
+    "plan_id": "PL-001",
+    "result": "fail",
+    "actual": "支付失败后订单仍显示已支付",
+    "create_defect": true,
+    "defect_title": "支付失败订单状态错误",
+    "severity": "严重"
+  }'
+```
+
+</details>
+
+---
+
+## 🗃️ 数据模型
+
+| 实体 | 主键 | 关键字段 | 说明 |
+|---|---|---|---|
+| `projects` | `P-001` | code, name, priority, owner, status | 测试项目 |
+| `requirements` | `R-001` | project_id, code, title, status, source | 需求 |
+| `cases` | `TC-001` | project_id, requirement_id, type, priority, steps(JSON), confidence, citations(JSON), review_status, execution_status | 测试用例 |
+| `plans` | `PL-001` | project_id, start/end_date, status, owner | 测试计划 |
+| `executions` | `EX-001` | plan_id, case_id, result, actual, executor | 执行记录 |
+| `defects` | `BUG-001` | project_id, case_id, severity, status, assignee | 缺陷 |
+| `audit_logs` | `AL-...` | actor, action, entity, detail, ip | 审计日志 |
+| `users` | `U-001` | username, name, role, team | 团队成员 |
+
+---
+
+## 🚦 质量门禁
+
+平台内置四条发布门禁，工作台与质量报告实时展示达成情况：
+
+| 门禁 | 目标 | 计算方式 |
+|---|---|---|
+| 需求覆盖率 | ≥ 90% | 有对应用例的需求 / 需求总数 |
+| 用例评审率 | ≥ 80% | 已评审或已通过用例 / 用例总数 |
+| 执行通过率 | ≥ 95% | 通过 / 已执行（通过 + 失败 + 阻塞） |
+| 致命/严重未关闭 | = 0 | 严重程度为致命或严重且状态非已关闭 |
+
+> 演示数据刻意保留了 2 条未达标门禁（通过率 72.7%、3 个严重缺陷未关闭），用于展示"门禁拦截"的真实场景。
+
+---
+
+## 🧪 测试报告
+
+```
+Ran 58 tests in 1.76s
 OK
 ```
 
-| 测试类 Test Class | 覆盖点 Coverage |
-| --- | --- |
-| `TestTokenizer` | 中文 bigram、英文分词、空输入 |
-| `TestRetrieval` | 语料加载、登录/边界检索准确性、置信度边界、无关查询无证据 |
-| `TestGeneration` | 正向生成、用例结构完整、类型覆盖、每条有引用、置信度合法、幻觉闸门拒绝 |
+| 测试文件 | 覆盖内容 | 用例数 |
+|---|---|---|
+| `tests/test_rag.py` | 分词、检索准确性、企业知识召回、生成结构、9 类用例、幻觉闸门 | 24 |
+| `tests/test_store.py` | CRUD、ID 递增、审计、级联删除、仪表盘聚合、CSV 导出 | 19 |
+| `tests/test_api.py` | 真实 HTTP 服务：健康检查、CRUD 全流程、执行转缺陷、生成、检索、导出 | 15 |
 
-运行命令：`python -m unittest discover -s tests -v`
+**测试中发现并修复的真实缺陷**
+1. 相对分数做闸门导致幻觉拦截失效 → 改为绝对 BM25 分数闸门；
+2. 审计日志用毫秒时间戳生成 ID，并发下主键冲突 → 加入随机后缀。
 
 ---
 
-## 项目结构 · Structure
+## 📁 项目结构
 
 ```
 testpilot-ai/
+├── server.py                  # REST 服务入口（路由 / 静态资源 / 业务联动）
 ├── engine/
-│   ├── rag.py              # BM25 检索引擎（分词/索引/打分/闸门）
-│   └── generator.py        # 证据驱动的用例生成器
+│   ├── __init__.py
+│   ├── rag.py                 # BM25 检索 + 分词 + 绝对分数闸门
+│   ├── generator.py           # 证据驱动用例生成（9 类）
+│   ├── store.py               # SQLite 数据层（8 实体 / 聚合 / 审计）
+│   └── seed.py                # 企业演示数据
 ├── knowledge/
-│   └── corpus.json         # 15 篇测试知识文档（RAG 证据源）
-├── web/
-│   ├── index.html          # 单页应用结构
-│   ├── style.css           # 科技感深色主题
-│   └── app.js              # 交互逻辑与可视化
+│   └── corpus.json            # 测试知识库（29 篇，稳定 KB-ID）
+├── web/                       # 前端源码（服务端模式）
+│   ├── index.html
+│   ├── style.css
+│   ├── app.js                 # 12 个视图 + 交互
+│   ├── i18n.js                # 中 / 英 / 日 字典
+│   └── standalone.js          # 纯前端引擎 + 演示数据（自动生成）
+├── docs/                      # GitHub Pages 静态演示（web 的副本）
+├── tools/
+│   └── gen_standalone.py      # 从语料 + 种子数据生成 standalone.js
 ├── tests/
-│   └── test_rag.py         # 15 个单元测试
-├── server.py               # HTTP 服务与 API
-└── README.md
+│   ├── test_rag.py
+│   ├── test_store.py
+│   └── test_api.py
+├── data/                      # SQLite 数据库（运行时生成）
+├── README.md / README.en.md / README.ja.md
+└── LICENSE
 ```
 
 ---
 
-## 适用场景 · Use Cases
+## 🌐 多语言
 
-- 软件测试课程设计 / 期末考核项目佐证
-- 测试团队的需求分析与测试用例评审辅助
-- RAG 落地实践与 AI 幻觉治理的技术演示
-- 简历 / 评奖材料中"AI + 测试"工程能力的证明
+| 语言 | 文件 | 入口 |
+|---|---|---|
+| 简体中文 | `web/i18n.js` → `I18N.zh` | 默认 |
+| English | `web/i18n.js` → `I18N.en` | `?lang=en` 或顶栏 EN |
+| 日本語 | `web/i18n.js` → `I18N.ja` | `?lang=ja` 或顶栏 日 |
+
+新增语言步骤：
+
+1. 在 `web/i18n.js` 的 `I18N` 中追加字典（可复制 `zh` 后翻译）；
+2. 在 `LANGS` 数组追加 `{ code, label, short }`；
+3. 同步到 `docs/` 目录。
 
 ---
 
-## 许可 · License
+## 🚀 部署
 
-MIT License · 欢迎学习与二次开发，使用时请保留来源说明。
+### 本地 / 内网服务器
+
+```bash
+PORT=8080 python server.py
+```
+
+### GitHub Pages（纯静态）
+
+```bash
+cp web/index.html web/style.css web/app.js web/i18n.js web/standalone.js docs/
+git add docs && git commit -m "chore: sync docs" && git push
+```
+
+仓库 `Settings → Pages` 选择 `master` 分支 `/docs` 目录即可。
+
+### Docker（可选）
+
+```dockerfile
+FROM python:3.12-slim
+WORKDIR /app
+COPY . .
+EXPOSE 8765
+CMD ["python", "server.py"]
+```
 
 ---
+
+## 📝 v2.0.0 更新日志
+
+**新增**
+- 🏢 企业级数据层：SQLite 持久化，8 类实体，级联删除，审计留痕
+- 🧩 12 个业务模块：工作台 / 项目 / 需求 / 用例 / 计划 / 执行 / 缺陷 / 生成台 / 知识库 / 报告 / 审计 / 设置
+- 🌐 多语言：简体中文、English、日本語，界面即时切换
+- 📚 知识库扩充：15 → 29 篇，新增接口、安全、性能、测试流程四类
+- 🎯 用例类型扩充：6 → 9 类，新增幂等性、性能时效、数据一致性
+- 📊 原生 SVG 趋势图、环形图、分级条形图
+- 🚦 四条质量门禁与质量报告
+- 📤 CSV 导出、Markdown/JSON 导出
+- 🔗 URL 深链：`?lang=`、`#view`、`?gen=` 一键演示
+
+**优化**
+- 表格列宽与单元格裁切，长文本不再撑破布局
+- 静态资源禁用缓存，开发调试即时生效
+- 审计日志 ID 唯一性修复，支持并发写入
+
+**修复**
+- 相对分数闸门导致幻觉拦截失效 → 绝对分数闸门
+- 前端模块化渲染的异步时序问题
+
+---
+
+## 🗺️ 路线图
+
+- [ ] 接入真实 LLM（保留 RAG 证据约束与引用校验）
+- [ ] 用例导入（Excel / TestLink / Jira）
+- [ ] CI/CD Webhook：流水线结果自动回写执行状态
+- [ ] 角色权限矩阵（RBAC）与登录鉴权
+- [ ] 测试数据生成器（边界值 / 等价类自动构造）
+- [ ] 覆盖率趋势与缺陷密度分析
+
+---
+
+## 📄 License
+
+[MIT](LICENSE) © jhlking
 
 <div align="center">
 
-**TestPilot AI** — Evidence-grounded testing, by design.
+**如果这个项目对你有帮助，欢迎 Star ⭐**
+
+[简体中文](README.md) · [English](README.en.md) · [日本語](README.ja.md)
+
 </div>

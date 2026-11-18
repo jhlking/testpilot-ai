@@ -16,11 +16,14 @@ from .rag import RAGEngine, RELEVANCE_THRESHOLD, REVIEW_THRESHOLD, MIN_ABS_SCORE
 
 # 从需求文本中识别关键信号词，决定生成哪些类型的用例
 SIGNALS = {
-    "boundary": ["边界", "范围", "限制", "最大", "最小", "不超过", "最多", "最少", "位", "长度", "之间", "以内", "以上"],
-    "validation": ["校验", "验证", "必填", "不能为空", "提示", "错误", "格式", "合法", "仅支持", "只允许"],
-    "auth": ["登录", "密码", "账号", "认证", "鉴权", "权限", "token", "授权"],
-    "business": ["结算", "支付", "加入购物车", "下单", "订单", "优惠", "库存", "金额", "提交", "生成"],
-    "security": ["安全", "上传", "注入", "越权", "加密", "密文"],
+    "boundary": ["边界", "范围", "限制", "最大", "最小", "不超过", "最多", "最少", "位", "长度", "之间", "以内", "以上", "不超过", "超限"],
+    "validation": ["校验", "验证", "必填", "不能为空", "提示", "错误", "格式", "合法", "仅支持", "只允许", "非法"],
+    "auth": ["登录", "密码", "账号", "认证", "鉴权", "权限", "token", "授权", "签名", "令牌"],
+    "business": ["结算", "支付", "加入购物车", "下单", "订单", "优惠", "库存", "金额", "提交", "生成", "退款", "对账", "满减"],
+    "security": ["安全", "上传", "注入", "越权", "加密", "密文", "SQL", "XSS", "敏感", "重放"],
+    "idempotency": ["幂等", "重复提交", "重复请求", "重试", "幂等键", "单次"],
+    "performance": ["性能", "并发", "响应", "延迟", "TPS", "吞吐", "秒", "负载"],
+    "consistency": ["一致", "扣减", "对账", "流水", "重跑", "同步", "累计"],
 }
 
 TYPE_LABELS = {
@@ -30,6 +33,9 @@ TYPE_LABELS = {
     "validation": "格式校验",
     "security": "安全性",
     "business": "业务流程",
+    "idempotency": "幂等性",
+    "performance": "性能时效",
+    "consistency": "数据一致性",
 }
 
 
@@ -92,22 +98,27 @@ class CaseGenerator:
         cases = []
         cid = 1
 
-        def add(case_type, title, precond, steps, expected, basis_idx=0, confidence_adj=0.0):
+        def add(case_type, title, precond, steps, expected, basis_idx=0, confidence_adj=0.0, priority=None):
             nonlocal cid
             basis = usable[min(basis_idx, len(usable) - 1)]
             conf = max(0.0, min(1.0, basis["confidence"] + confidence_adj))
+            if priority is None:
+                priority = "高" if case_type in ("positive", "business", "security", "idempotency", "consistency") else "中"
             cases.append({
                 "id": "TC-%03d" % cid,
                 "type": case_type,
                 "type_label": TYPE_LABELS.get(case_type, case_type),
                 "title": title,
-                "priority": "高" if case_type in ("positive", "business", "security") else "中",
+                "priority": priority,
                 "precondition": precond,
                 "steps": steps,
                 "expected": expected,
                 "citations": [self._citation(basis)],
                 "confidence": round(conf, 3),
                 "needs_review": conf < REVIEW_THRESHOLD,
+                "review_status": "draft",
+                "execution_status": "untested",
+                "assignee": "—",
             })
             cid += 1
 
@@ -167,8 +178,41 @@ class CaseGenerator:
                 "基本流成功产出预期结果；异常分支被正确处理，状态与数据保持一致",
                 basis_idx=biz_idx)
 
+        # 7) 幂等性用例（重复提交 / 支付 / 下单 / 退款）
+        if "idempotency" in signals:
+            idem_idx = next((i for i, e in enumerate(usable) if "幂等" in e["title"] or "幂等" in e["content"]), 0)
+            add("idempotency",
+                "验证重复提交与幂等键约束",
+                "系统具备幂等机制，已生成唯一幂等键",
+                ["使用同一幂等键连续提交两次相同请求", "校验业务记录数量与返回单号", "使用不同幂等键再提交一次"],
+                "重复请求只产生一条记录且返回同一单号；不同幂等键正常创建新记录，无重复扣款/库存扣减",
+                basis_idx=idem_idx, priority="高")
+
+        # 8) 性能/时效性用例（延迟 / 秒 / 并发）
+        if "performance" in signals:
+            perf_idx = next((i for i, e in enumerate(usable) if "性能" in e["title"] or "延迟" in e["content"]), 0)
+            add("performance",
+                "验证关键操作的时效性与并发响应",
+                "系统部署完成，可模拟多用户并发",
+                ["在预期并发下执行目标操作", "记录 P95 响应时间与吞吐量", "持续运行观察稳定性"],
+                "关键操作响应时间满足需求阈值，吞吐达标，长时间运行无内存泄漏或性能衰减",
+                basis_idx=perf_idx, priority="中")
+
+        # 9) 数据一致性用例（扣减 / 对账 / 重跑）
+        if "consistency" in signals:
+            cons_idx = next((i for i, e in enumerate(usable) if "一致" in e["title"] or "重跑" in e["content"]), 0)
+            add("consistency",
+                "验证跨模块数据一致性与重跑幂等",
+                "具备可对照的源数据与业务流水",
+                ["完成一次业务操作后核对关联表数据", "对同一批次执行两次重跑", "比对两次结果与明细汇总"],
+                "各关联数据能对平，重跑结果完全一致、无重复计数或脏数据",
+                basis_idx=cons_idx, priority="高")
+
         avg_conf = sum(c["confidence"] for c in cases) / len(cases) if cases else 0.0
         review_count = sum(1 for c in cases if c["needs_review"])
+        priority_mix = {}
+        for c in cases:
+            priority_mix[c["priority"]] = priority_mix.get(c["priority"], 0) + 1
         return {
             "accepted": True,
             "refusal": "",
@@ -182,5 +226,7 @@ class CaseGenerator:
                 "needs_review_count": review_count,
                 "hallucination_guard": "passed",
                 "signals_detected": sorted(signals),
+                "priority_mix": priority_mix,
+                "engine_version": "2.0.0",
             },
         }

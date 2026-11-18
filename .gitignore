@@ -3,6 +3,13 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+
+# 运行时生成的数据库（首次启动自动创建并灌入演示数据）
+data/
+*.db
+*.db-wal
+*.db-shm
+
 server.log
 server.pid
 .DS_Store
