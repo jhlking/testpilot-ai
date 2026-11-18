@@ -67,7 +67,10 @@ function generate(requirement,title){
   const cit=e=>({id:e.id,title:e.title,category:e.category,content:e.content});
   function add(type,t,pre,steps,exp,bi=0,adj=0,priority){
     const b=usable[Math.min(bi,usable.length-1)];
-    const conf=Math.max(0,Math.min(1,b.confidence+adj));
+    // 防呆：adj 只接受数字，避免调用方把 priority 传进 adj 位置导致 NaN
+    const delta=typeof adj==="number"&&isFinite(adj)?adj:0;
+    const base=typeof b.confidence==="number"&&isFinite(b.confidence)?b.confidence:0;
+    const conf=Math.max(0,Math.min(1,base+delta));
     const pri=priority||(["positive","business","security","idempotency","consistency"].includes(type)?"高":"中");
     cases.push({id:"TC-"+String(cases.length+1).padStart(3,"0"),type,type_label:TYPES[type],title:feat?feat+"｜"+t:t,priority:pri,
       precondition:pre,steps,expected:exp,citations:[cit(b)],confidence:conf,needs_review:conf<REVIEW,
@@ -106,26 +109,26 @@ function generate(requirement,title){
     const ii=usable.findIndex(e=>e.title.includes("幂等")||e.content.includes("幂等"));
     add("idempotency","验证重复提交与幂等键约束","系统具备幂等机制，已生成唯一幂等键",
       ["使用同一幂等键连续提交两次相同请求","校验业务记录数量与返回单号","使用不同幂等键再提交一次"],
-      "重复请求只产生一条记录且返回同一单号；无重复扣款/库存扣减",ii>=0?ii:0,"高");
+      "重复请求只产生一条记录且返回同一单号；无重复扣款/库存扣减",ii>=0?ii:0,0,"高");
   }
   if(sig.has("performance")){
     const pi=usable.findIndex(e=>e.title.includes("性能")||e.content.includes("延迟"));
     add("performance","验证关键操作的时效性与并发响应","系统部署完成，可模拟多用户并发",
       ["在预期并发下执行目标操作","记录 P95 响应时间与吞吐量","持续运行观察稳定性"],
-      "关键操作响应时间满足需求阈值，吞吐达标，长时间运行无性能衰减",pi>=0?pi:0,"中");
+      "关键操作响应时间满足需求阈值，吞吐达标，长时间运行无性能衰减",pi>=0?pi:0,0,"中");
   }
   if(sig.has("consistency")){
     const ci=usable.findIndex(e=>e.title.includes("一致")||e.content.includes("重跑"));
     add("consistency","验证跨模块数据一致性与重跑幂等","具备可对照的源数据与业务流水",
       ["完成一次业务操作后核对关联表数据","对同一批次执行两次重跑","比对两次结果与明细汇总"],
-      "各关联数据能对平，重跑结果完全一致、无重复计数或脏数据",ci>=0?ci:0,"高");
+      "各关联数据能对平，重跑结果完全一致、无重复计数或脏数据",ci>=0?ci:0,0,"高");
   }
-  const avg=cases.reduce((s,c)=>s+c.confidence,0)/cases.length;
+  const avg=cases.length?cases.reduce((s,c)=>s+c.confidence,0)/cases.length:0;
   const priMix={};cases.forEach(c=>priMix[c.priority]=(priMix[c.priority]||0)+1);
   return{accepted:true,refusal:"",cases,evidence:usable,meta:{
     evidence_count:usable.length,case_count:cases.length,avg_confidence:avg,
     needs_review_count:cases.filter(c=>c.needs_review).length,
-    hallucination_guard:"passed",signals_detected:[...sig].sort(),priority_mix:priMix,engine_version:"2.0.1"}};
+    hallucination_guard:"passed",signals_detected:[...sig].sort(),priority_mix:priMix,engine_version:"2.0.2"}};
 }
 
 /* ---------- 与后端 REST 同构的本地数据访问层 ---------- */

@@ -228,6 +228,6 @@ class CaseGenerator:
                 "hallucination_guard": "passed",
                 "signals_detected": sorted(signals),
                 "priority_mix": priority_mix,
-                "engine_version": "2.0.1",
+                "engine_version": "2.0.2",
             },
         }

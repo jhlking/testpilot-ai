@@ -6,7 +6,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
-![Tests](https://img.shields.io/badge/tests-60%20passed-success)
+![Tests](https://img.shields.io/badge/tests-66%20passed-success)
 ![Modules](https://img.shields.io/badge/modules-12-6366f1)
 ![i18n](https://img.shields.io/badge/i18n-zh%20%7C%20en%20%7C%20ja-22d3ee)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -177,7 +177,7 @@ flowchart TB
 | Retrieval | Custom BM25 | K1=1.5, B=0.75; Chinese bigram + English words |
 | Frontend | Vanilla HTML/CSS/JS | No framework, no build, no CDN |
 | Charts | Native SVG / conic-gradient | No chart library |
-| Testing | `unittest` | 60 tests including API integration |
+| Testing | `unittest` | 66 tests including API integration and frontend engine |
 | i18n | Custom dictionary + `data-i18n` | 3 languages, localStorage persistence |
 | Deployment | Local / GitHub Pages | Server mode + static mode |
 
@@ -213,7 +213,7 @@ Open **http://127.0.0.1:8765** — the database is created and seeded with enter
 
 ```bash
 python -m unittest discover -s tests -v
-# Ran 60 tests ... OK
+# Ran 66 tests ... OK
 ```
 
 ### 3. Call the API
@@ -330,7 +330,7 @@ Four release gates are built in and shown live on the dashboard and quality repo
 ## 🧪 Test Report
 
 ```
-Ran 60 tests in 1.75s
+Ran 66 tests in 1.73s
 OK
 ```
 
@@ -339,11 +339,13 @@ OK
 | `tests/test_rag.py` | Tokenization, retrieval accuracy, enterprise recall, output structure, 9 case types, hallucination gate | 24 |
 | `tests/test_store.py` | CRUD, ID increment, audit, cascade delete, dashboard aggregation, CSV export | 19 |
 | `tests/test_api.py` | Real HTTP server: health, full CRUD, execution-to-defect, generation, search, export, actor-header regression | 17 |
+| `tests/test_standalone.py` | Frontend JS engine via node: finite confidence, priority enum, title prefix, case-count parity with server, hallucination guard | 6 |
 
 **Real defects found and fixed during testing**
 1. Relative-score gating made the hallucination guard ineffective → switched to an absolute BM25 threshold.
 2. Audit IDs were generated from millisecond timestamps and collided under concurrency → added a random suffix.
 3. **Every write operation silently failed in the browser**: the `X-Actor` header carried a Chinese name, so `fetch` threw `Failed to read the 'headers' property ... non ISO-8859-1 code point` — generation, create, update and execute were all broken in server mode (a toast flashed for a second). Fixed by `encodeURIComponent` on the client, `unquote` on the server, plus a regression test. **Unit tests and curl were all green; only a real browser click exposed it.**
+4. **The pure-frontend engine produced `NaN` confidence**: the JS `add()` received the priority in the confidence-delta slot, so idempotency / performance / consistency cases became `NaN` and the average rendered as `null`. The Python version uses keyword arguments, so it was fine — a textbook risk of maintaining two implementations. Fixed, then covered by `tests/test_standalone.py`, which runs the JS engine under node and compares case counts with the server.
 
 ---
 
@@ -425,6 +427,18 @@ COPY . .
 EXPOSE 8765
 CMD ["python", "server.py"]
 ```
+
+---
+
+## 📝 v2.0.2 Changelog
+
+**Fixed (important)**
+- 🐞 The frontend JS engine emitted `NaN` confidence: `add()` was called with the priority (`"高"`/`"中"`) in the confidence-delta slot, so idempotency / performance / consistency cases got `NaN`, and the average confidence rendered as `null`. The Python implementation uses keyword arguments, which is why the live demo (pure frontend mode) broke while every server-side test stayed green.
+- 🛡️ `add()` now type-guards its arguments so confidence and priority can no longer be silently corrupted.
+
+**New tests**
+- Added `tests/test_standalone.py` (6 tests): runs `standalone.js` under node and asserts confidence is a finite number in `[0,1]`, priority is a valid enum, titles carry the feature prefix, **the case count matches the server engine exactly**, and the hallucination guard still fires without evidence.
+- Total tests 60 → 66.
 
 ---
 

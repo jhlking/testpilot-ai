@@ -1,5 +1,5 @@
 {
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "TestPilot Enterprise 测试知识库 — RAG 证据源。覆盖方法论、设计技术、接口/安全/性能、流程、需求样例，每条带稳定 ID 供溯源。",
   "documents": [
     {

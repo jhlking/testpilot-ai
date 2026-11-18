@@ -73,7 +73,7 @@ class ApiTest(unittest.TestCase):
         code, d = req("GET", "/api/health")
         self.assertEqual(code, 200)
         self.assertEqual(d["status"], "ok")
-        self.assertEqual(d["version"], "2.0.1")
+        self.assertEqual(d["version"], "2.0.2")
         self.assertGreaterEqual(d["knowledge_docs"], 29)
 
     def test_stats(self):

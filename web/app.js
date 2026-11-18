@@ -1057,7 +1057,7 @@ function renderGenResult(res) {
       </div>
     </div>
     <div class="res-meta">
-      <span class="meta-pill">${t("gen.avgConf")} <b>${Math.round(m.avg_confidence * 100)}%</b></span>
+      <span class="meta-pill">${t("gen.avgConf")} <b>${Math.round((m.avg_confidence || 0) * 100)}%</b></span>
       <span class="meta-pill">${t("gen.blocks")} <b>${m.evidence_count}</b></span>
       <span class="meta-pill">${t("gen.review")} <b>${m.needs_review_count}</b></span>
       <span class="meta-pill">${t("gen.guard")} <b>${m.hallucination_guard === "passed" ? t("gen.guardPass") : t("gen.guardTrig")}</b></span>
@@ -1288,7 +1288,7 @@ function viewSettings() {
     </div>
   </div>
   <div class="panel" style="margin-top:14px">
-    <div class="panel-head"><h3>${t("settings.about")}</h3><span class="panel-hint">v2.0.1</span></div>
+    <div class="panel-head"><h3>${t("settings.about")}</h3><span class="panel-hint">v2.0.2</span></div>
     <p class="td-muted" style="font-size:12px;line-height:1.85">
       TestPilot Enterprise —— 企业级智能测试管理平台。覆盖项目 / 需求 / 用例 / 计划 / 执行 / 缺陷 / 审计全流程，
       内置基于 RAG 的测试用例生成引擎，每条用例均可追溯到知识库原文。<br>

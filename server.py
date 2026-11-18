@@ -118,7 +118,7 @@ class Handler(BaseHTTPRequestHandler):
         # 系统 / 知识库
         if path == "/api/health":
             return self._json(200, {"status": "ok", "service": "TestPilot Enterprise",
-                                    "engine": "BM25-RAG v2", "version": "2.0.1",
+                                    "engine": "BM25-RAG v2", "version": "2.0.2",
                                     "store": "SQLite", "knowledge_docs": engine.stats["total_documents"]})
         if path == "/api/stats":
             return self._json(200, engine.stats)
@@ -263,7 +263,7 @@ def main():
     print("=" * 62)
     print("  TestPilot Enterprise  ·  企业级测试管理平台")
     print("=" * 62)
-    print("  版本:  v2.0.1")
+    print("  版本:  v2.0.2")
     print("  引擎:  BM25-RAG v2（纯 Python 标准库，离线可用）")
     print("  存储:  SQLite 持久化  |  知识库: %d 篇" % engine.stats["total_documents"])
     print("  演示:  %d 项目 / %d 需求 / %d 用例" % (

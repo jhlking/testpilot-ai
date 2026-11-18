@@ -6,7 +6,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
-![Tests](https://img.shields.io/badge/tests-60%20passed-success)
+![Tests](https://img.shields.io/badge/tests-66%20passed-success)
 ![Modules](https://img.shields.io/badge/modules-12-6366f1)
 ![i18n](https://img.shields.io/badge/i18n-zh%20%7C%20en%20%7C%20ja-22d3ee)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -177,7 +177,7 @@ flowchart TB
 | 検索 | 自前 BM25 | K1=1.5、B=0.75、中国語 bigram + 英語語 |
 | フロントエンド | 素の HTML/CSS/JS | フレームワーク・ビルド・CDN なし |
 | チャート | ネイティブ SVG / conic-gradient | チャートライブラリ不要 |
-| テスト | `unittest` | 60 件（API 統合テストを含む） |
+| テスト | `unittest` | 66 件（API 統合テストとフロントエンドエンジンを含む） |
 | 国際化 | 独自辞書 + `data-i18n` | 3 言語、localStorage 記憶 |
 | デプロイ | ローカル / GitHub Pages | サーバーモード + 静的モード |
 
@@ -213,7 +213,7 @@ python server.py
 
 ```bash
 python -m unittest discover -s tests -v
-# Ran 60 tests ... OK
+# Ran 66 tests ... OK
 ```
 
 ### 3. API 呼び出し
@@ -330,7 +330,7 @@ curl -X POST http://127.0.0.1:8765/api/execute \
 ## 🧪 テストレポート
 
 ```
-Ran 60 tests in 1.75s
+Ran 66 tests in 1.73s
 OK
 ```
 
@@ -339,11 +339,13 @@ OK
 | `tests/test_rag.py` | トークン化、検索精度、企業ナレッジ召回、生成構造、9 種ケース、ハルシネーションゲート | 24 |
 | `tests/test_store.py` | CRUD、ID 採番、監査、連鎖削除、ダッシュボード集計、CSV 出力 | 19 |
 | `tests/test_api.py` | 実 HTTP サーバー：ヘルス、CRUD 一連、実行から欠陥化、生成、検索、出力、Actor ヘッダ回帰 | 17 |
+| `tests/test_standalone.py` | フロントエンド JS エンジン（node 実行）：信頼度の有限性、優先度 enum、タイトル接頭辞、サーバーとの件数一致、ハルシネーション防止 | 6 |
 
 **テストで発見・修正した実際の欠陥**
 1. 相対スコアをゲートに使ったためハルシネーション防止が機能していなかった → 絶対 BM25 スコアゲートに変更。
 2. 監査 ID をミリ秒タイムスタンプから生成していたため同時実行で主キー衝突 → ランダムサフィックスを追加。
 3. **ブラウザからの書き込みが全て無言で失敗**：`X-Actor` ヘッダに中文氏名をそのまま入れたため `fetch` が `non ISO-8859-1 code point` で例外送出。サーバーモードの生成・作成・更新・実行が全滅（画面は一瞬 Toast が出るだけ）。クライアント側 `encodeURIComponent` + サーバー側 `unquote` で修正し、回帰テストを追加。**単体テストも curl も緑で、実ブラウザで一度クリックして初めて露見した欠陥**。
+4. **純フロントエンドエンジンが `NaN` の信頼度を出力**：JS 版 `add()` が優先度を信頼度増分の引数に受け取っていたため、冪等性・性能・一貫性のケースが `NaN`、平均信頼度が `null` に。Python 版はキーワード引数なので無事——「実装が二つある」リスクの典型例。修正後、node で JS エンジンを実行しサーバー側と件数を比較する `tests/test_standalone.py` を追加。
 
 ---
 
@@ -425,6 +427,18 @@ COPY . .
 EXPOSE 8765
 CMD ["python", "server.py"]
 ```
+
+---
+
+## 📝 v2.0.2 更新履歴
+
+**修正（重要）**
+- 🐞 フロントエンド JS エンジンが `NaN` の信頼度を出力：`add()` の呼び出しで優先度（`"高"`/`"中"`）を信頼度の増分引数に渡していたため、冪等性・性能・一貫性のケースが `NaN` になり、平均信頼度が `null` 表示に。Python 側はキーワード引数を使っているため、サーバー側テストは全て緑のまま、純フロントエンドのデモだけが壊れていた。
+- 🛡️ `add()` に型ガードを追加し、信頼度と優先度が無言で壊れないように。
+
+**テスト追加**
+- `tests/test_standalone.py`（6 件）を追加：node で `standalone.js` を実行し、信頼度が `[0,1]` の有限数か、優先度が正しい enum か、タイトルに機能名接頭辞があるか、**サーバーエンジンとケース件数が一致するか**、根拠なしでハルシネーション防止が働くかを検証。
+- テスト合計 60 → 66。
 
 ---
 

@@ -6,7 +6,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
-![Tests](https://img.shields.io/badge/tests-60%20passed-success)
+![Tests](https://img.shields.io/badge/tests-66%20passed-success)
 ![Modules](https://img.shields.io/badge/modules-12-6366f1)
 ![i18n](https://img.shields.io/badge/i18n-zh%20%7C%20en%20%7C%20ja-22d3ee)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -176,7 +176,7 @@ flowchart TB
 | 检索引擎 | 自研 BM25 | K1=1.5, B=0.75，中文 bigram + 英文词 |
 | 前端 | 原生 HTML/CSS/JavaScript | 零框架、零构建、零 CDN |
 | 图表 | 原生 SVG / conic-gradient | 无图表库依赖 |
-| 测试 | `unittest` | 60 个用例，含 API 集成测试 |
+| 测试 | `unittest` | 66 个用例，含 API 集成测试与前端引擎测试 |
 | 国际化 | 自研字典 + `data-i18n` | 3 种语言，localStorage 记忆 |
 | 部署 | 本地 / GitHub Pages | 服务端模式 + 纯静态模式双形态 |
 
@@ -212,7 +212,7 @@ python server.py
 
 ```bash
 python -m unittest discover -s tests -v
-# Ran 60 tests ... OK
+# Ran 66 tests ... OK
 ```
 
 ### 3. 调用 API
@@ -329,7 +329,7 @@ curl -X POST http://127.0.0.1:8765/api/execute \
 ## 🧪 测试报告
 
 ```
-Ran 60 tests in 1.75s
+Ran 66 tests in 1.73s
 OK
 ```
 
@@ -338,11 +338,13 @@ OK
 | `tests/test_rag.py` | 分词、检索准确性、企业知识召回、生成结构、9 类用例、幻觉闸门 | 24 |
 | `tests/test_store.py` | CRUD、ID 递增、审计、级联删除、仪表盘聚合、CSV 导出 | 19 |
 | `tests/test_api.py` | 真实 HTTP 服务：健康检查、CRUD 全流程、执行转缺陷、生成、检索、导出、审计头编码回归 | 17 |
+| `tests/test_standalone.py` | 前端 JS 引擎（node 执行）：置信度有限性、优先级枚举、标题前缀、与服务端条数一致、幻觉闸门 | 6 |
 
 **测试中发现并修复的真实缺陷**
 1. 相对分数做闸门导致幻觉拦截失效 → 改为绝对 BM25 分数闸门；
 2. 审计日志用毫秒时间戳生成 ID，并发下主键冲突 → 加入随机后缀；
-3. **浏览器端所有写操作静默失效**：`X-Actor` 头直接塞中文姓名，`fetch` 抛 `Failed to read the 'headers' property ... non ISO-8859-1 code point`，导致服务端模式下生成 / 新建 / 修改 / 执行全部失败（页面只闪一下报错 Toast）。修复：前端 `encodeURIComponent` 编码，服务端 `unquote` 还原，并补一条回归用例锁死。**这个缺陷只有在真实浏览器里点一次才会暴露，单元测试与 curl 全部是绿的**。
+3. **浏览器端所有写操作静默失效**：`X-Actor` 头直接塞中文姓名，`fetch` 抛 `Failed to read the 'headers' property ... non ISO-8859-1 code point`，导致服务端模式下生成 / 新建 / 修改 / 执行全部失败（页面只闪一下报错 Toast）。修复：前端 `encodeURIComponent` 编码，服务端 `unquote` 还原，并补一条回归用例锁死。**这个缺陷只有在真实浏览器里点一次才会暴露，单元测试与 curl 全部是绿的**；
+4. **纯前端引擎产出 NaN 置信度**：JS 版 `add()` 把优先级传进了置信度增量参数，幂等 / 性能 / 一致性用例置信度变 `NaN`，平均置信度渲染成 `null`。Python 版用关键字参数所以没事——这正是「两份实现」的典型风险。修复后补了 `tests/test_standalone.py`，用 node 直接跑 JS 引擎并比对两侧用例条数。
 
 ---
 
@@ -424,6 +426,18 @@ COPY . .
 EXPOSE 8765
 CMD ["python", "server.py"]
 ```
+
+---
+
+## 📝 v2.0.2 更新日志
+
+**修复（重要）**
+- 🐞 前端 JS 引擎产出 `NaN` 置信度：`add()` 调用把优先级 `"高"/"中"` 传进了置信度增量参数，导致幂等 / 性能 / 一致性三类用例置信度为 `NaN`，页面上平均置信度显示为 `null`。Python 侧实现用的是关键字参数，所以线上演示（纯前端模式）出错而服务端测试全绿。
+- 🛡️ `add()` 增加类型防呆，置信度与优先级再也不会被静默写坏。
+
+**新增测试**
+- 新增 `tests/test_standalone.py`（6 条）：用 node 直接执行 `standalone.js`，校验置信度必须是 `[0,1]` 内的有限数、优先级必须是合法枚举、标题带功能名前缀、**与服务端引擎的用例条数完全一致**、无证据时幻觉闸门照样触发。
+- 测试总数 60 → 66。
 
 ---
 
