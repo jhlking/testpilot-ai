@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TestPilot AI · 智测方舟 — 基于 RAG 的测试用例智能生成平台</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div class="brand-text">
+        <div class="brand-name">TestPilot <span>AI</span></div>
+        <div class="brand-sub">智测方舟 · RAG 测试平台</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard"><span class="nav-ico">◈</span>工作台</button>
+      <button class="nav-item" data-view="generate"><span class="nav-ico">✦</span>用例生成</button>
+      <button class="nav-item" data-view="knowledge"><span class="nav-ico">▤</span>知识库</button>
+      <button class="nav-item" data-view="tests"><span class="nav-ico">◉</span>质量报告</button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="engine-pill"><span class="dot"></span> BM25-RAG 引擎在线</div>
+      <div class="sidebar-note">纯 Python 标准库 · 离线可运行</div>
+    </div>
+  </aside>
+
+  <!-- 主内容 -->
+  <main class="main">
+    <!-- 顶栏 -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="crumb">测试中心 / <b id="crumbView">工作台</b></div>
+      </div>
+      <div class="topbar-right">
+        <span class="status-badge"><span class="dot"></span> 系统就绪</span>
+        <div class="avatar">JL</div>
+      </div>
+    </header>
+
+    <!-- 工作台 -->
+    <section class="view" id="view-dashboard">
+      <div class="hero">
+        <div class="hero-content">
+          <div class="hero-tag">RAG-POWERED · EVIDENCE-GROUNDED</div>
+          <h1>让每一条测试用例<br><span>都有据可查</span></h1>
+          <p>基于检索增强生成（RAG），将需求与真实测试知识库对齐。每条用例附带知识来源与置信度，从机制上抑制 AI 幻觉。</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" onclick="switchView('generate')">开始生成用例 →</button>
+            <button class="btn btn-ghost" onclick="switchView('knowledge')">浏览知识库</button>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="ring-wrap">
+            <div class="ring"><div class="ring-inner"><span id="heroConf">—</span><small>平均置信度</small></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">知识库文档</div><div class="metric-value" id="mDocs">—</div><div class="metric-foot">权威测试知识条目</div></div>
+        <div class="metric"><div class="metric-label">已生成用例</div><div class="metric-value" id="mCases">0</div><div class="metric-foot">本次会话累计</div></div>
+        <div class="metric"><div class="metric-label">溯源覆盖率</div><div class="metric-value" id="mCite">100%</div><div class="metric-foot">用例附带引用比例</div></div>
+        <div class="metric"><div class="metric-label">幻觉拦截</div><div class="metric-value" id="mGuard">0</div><div class="metric-foot">无证据拒绝生成次数</div></div>
+      </div>
+
+      <div class="panel-grid">
+        <div class="panel">
+          <div class="panel-head"><h3>知识库分布</h3><span class="panel-hint">按类别</span></div>
+          <div id="catChart" class="chart-bars"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>防幻觉机制</h3><span class="panel-hint">四道闸门</span></div>
+          <div class="guard-list">
+            <div class="guard-item"><span class="g-num">01</span><div><b>无证据不生成</b><p>相似度低于阈值直接拒绝</p></div></div>
+            <div class="guard-item"><span class="g-num">02</span><div><b>引用可回溯</b><p>每条用例绑定原文 KB-ID</p></div></div>
+            <div class="guard-item"><span class="g-num">03</span><div><b>置信度量化</b><p>BM25 归一化评分</p></div></div>
+            <div class="guard-item"><span class="g-num">04</span><div><b>低分人工复核</b><p>弱证据自动标记待审</p></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 用例生成 -->
+    <section class="view hidden" id="view-generate">
+      <div class="page-head">
+        <div><h2>测试用例生成</h2><p>输入需求描述，系统检索知识库证据并生成可溯源的测试用例</p></div>
+      </div>
+      <div class="gen-layout">
+        <div class="gen-input-col">
+          <div class="card">
+            <div class="card-title">需求描述 <span class="req">*</span></div>
+            <input type="text" id="reqTitle" class="input" placeholder="功能标题，如：用户登录功能">
+            <textarea id="reqText" class="textarea" rows="9" placeholder="粘贴或描述需求，例如：用户输入用户名（6-20位字母或数字）和密码（8-20位，含字母和数字），连续5次错误锁定30分钟……"></textarea>
+            <div class="samples">
+              <span>示例：</span>
+              <button class="chip" onclick="fillSample('login')">登录功能</button>
+              <button class="chip" onclick="fillSample('cart')">购物车结算</button>
+              <button class="chip" onclick="fillSample('upload')">文件上传</button>
+            </div>
+            <button class="btn btn-primary btn-block" id="genBtn" onclick="generateCases()">✦ 生成测试用例</button>
+            <div class="tip">系统会先检索知识库证据；若无可靠证据将拒绝生成，避免编造。</div>
+          </div>
+          <div class="card" id="evidenceCard" style="display:none">
+            <div class="card-title">检索到的证据 <span class="panel-hint" id="evCount"></span></div>
+            <div id="evidenceList" class="evidence-list"></div>
+          </div>
+        </div>
+        <div class="gen-output-col">
+          <div id="resultPlaceholder" class="placeholder">
+            <div class="ph-icon">✦</div>
+            <h3>等待生成</h3>
+            <p>在左侧输入需求，点击「生成测试用例」<br>结果将以可溯源卡片形式展示在这里</p>
+          </div>
+          <div id="resultArea" style="display:none"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 知识库 -->
+    <section class="view hidden" id="view-knowledge">
+      <div class="page-head">
+        <div><h2>测试知识库</h2><p>RAG 的证据源 · 每条文档带稳定 ID，供用例引用溯源</p></div>
+        <input type="text" id="kbSearch" class="input search" placeholder="搜索知识库…" oninput="renderKnowledge()">
+      </div>
+      <div id="kbGrid" class="kb-grid"></div>
+    </section>
+
+    <!-- 质量报告 -->
+    <section class="view hidden" id="view-tests">
+      <div class="page-head"><div><h2>质量报告</h2><p>引擎自测与防幻觉验证结果</p></div></div>
+      <div class="report-hero">
+        <div class="report-score"><span id="passRate">—</span><small>测试通过率</small></div>
+        <div class="report-info">
+          <h3>引擎单元测试套件</h3>
+          <p>覆盖检索准确性、证据约束、无幻觉闸门、置信度计算。运行 <code>python -m unittest discover -s tests -v</code> 复现。</p>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>测试用例生成分布</h3><span class="panel-hint">本次会话</span></div>
+        <div id="typeChart" class="chart-bars"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
