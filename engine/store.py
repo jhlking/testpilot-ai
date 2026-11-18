@@ -345,11 +345,11 @@ class Store:
         # 质量门禁
         coverage = round(covered_reqs / len(reqs) * 100, 1) if reqs else 0.0
         gates = [
-            {"name": "需求覆盖率", "value": coverage, "target": 90, "unit": "%", "passed": coverage >= 90},
-            {"name": "用例评审率", "value": round(reviewed / len(cases) * 100, 1) if cases else 0, "target": 80, "unit": "%",
+            {"key": "coverage", "name": "需求覆盖率", "value": coverage, "target": 90, "unit": "%", "passed": coverage >= 90},
+            {"key": "review", "name": "用例评审率", "value": round(reviewed / len(cases) * 100, 1) if cases else 0, "target": 80, "unit": "%",
              "passed": reviewed / len(cases) >= 0.8 if cases else False},
-            {"name": "执行通过率", "value": pass_rate, "target": 95, "unit": "%", "passed": pass_rate >= 95},
-            {"name": "致命/严重未关闭", "value": critical_open, "target": 0, "unit": "个", "passed": critical_open == 0},
+            {"key": "pass_rate", "name": "执行通过率", "value": pass_rate, "target": 95, "unit": "%", "passed": pass_rate >= 95},
+            {"key": "critical_open", "name": "致命/严重未关闭", "value": critical_open, "target": 0, "unit": "个", "passed": critical_open == 0},
         ]
         trend = {}
         for e in executions:

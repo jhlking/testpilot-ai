@@ -165,7 +165,7 @@ class TestGeneration(unittest.TestCase):
 
     def test_engine_version_reported(self):
         r = self.generator.generate("用户登录 密码校验", "登录")
-        self.assertEqual(r["meta"]["engine_version"], "2.0.0")
+        self.assertEqual(r["meta"]["engine_version"], "2.0.1")
 
 
 if __name__ == "__main__":

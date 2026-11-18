@@ -6,6 +6,14 @@ const IS_DEMO = location.hostname.endsWith("github.io");
 const ENTITY_URL = { audit: "audit-logs" };
 const ENTITY_DEMO = { audit: "auditLogs", "audit-logs": "auditLogs" };
 
+/* 当前操作者。HTTP 头只允许 ISO-8859-1，中文必须 encodeURIComponent 后再发，
+   服务端用 urllib.parse.unquote 还原（否则 fetch 直接抛 TypeError）。 */
+const ACTOR = "李伟";
+function actorHeader() {
+  try { return encodeURIComponent(ACTOR); }
+  catch (e) { return "user"; }
+}
+
 const STATE = {
   view: "dashboard",
   projectId: "",
@@ -51,7 +59,44 @@ function badgeSeverity(v) {
 }
 function badgePriority(v) {
   const map = { "高": "red", "中": "amber", "低": "gray", "P0": "red", "P1": "blue" };
-  return `<span class="badge ${map[v] || "gray"}">${esc(v)}</span>`;
+  return `<span class="badge ${map[v] || "gray"}">${esc(prioText(v))}</span>`;
+}
+
+/* 数据值仍是中文（数据库里的枚举），展示时按当前语言翻译 */
+const SEV_ORDER = ["致命", "严重", "一般", "轻微"];
+const DEFECT_STATUS = ["新建", "已修复待验证", "重新打开", "已关闭", "拒绝", "延迟"];
+function enumText(prefix, v) {
+  const k = prefix + v;
+  const s = t(k);
+  return s === k ? v : s;
+}
+function sevText(v) { return enumText("enum.severity.", v); }
+function statusText(v) { return enumText("enum.dstatus.", v); }
+function prioText(v) {
+  const key = { "高": "high", "中": "mid", "低": "low" }[v];
+  return key ? t("enum.priority." + key) : v;
+}
+
+/* 审计日志里的动作是后端按"动词+实体"拼的中文，这里按当前语言还原 */
+const AUDIT_VERB = {
+  "创建": "audit.create", "更新": "audit.update", "删除": "audit.delete",
+  "提交": "audit.submit", "评审": "audit.review", "导入": "audit.import", "执行": "audit.execute"
+};
+const ENTITY_ZH = {
+  "用例": "entity.case", "需求": "entity.requirement", "缺陷": "entity.defect",
+  "测试计划": "entity.plan", "项目": "entity.project", "执行记录": "entity.execution", "用户": "entity.user"
+};
+function auditAction(action) {
+  const m = /^(创建|更新|删除|提交|评审|导入|执行)(.+)$/.exec(action || "");
+  if (m) {
+    const verb = t(AUDIT_VERB[m[1]]);
+    const obj = ENTITY_ZH[m[2]] ? t(ENTITY_ZH[m[2]]) : m[2];
+    // 拉丁字母结尾的动词需要补空格（英文），中日文直接拼接
+    return verb + (/[A-Za-z]$/.test(verb) ? " " : "") + obj;
+  }
+  if (action === "RAG 生成用例") return t("audit.generate");
+  if (action === "执行用例") return t("audit.execute");
+  return action;
 }
 
 /* ---------------- 数据访问（后端 / 演示 双模式） ---------------- */
@@ -73,28 +118,28 @@ async function apiDashboard() {
 async function apiCreate(entity, data) {
   if (IS_DEMO) return DemoAPI.create(ENTITY_DEMO[entity] || entity, data);
   const r = await fetch("/api/" + (ENTITY_URL[entity] || entity), {
-    method: "POST", headers: { "Content-Type": "application/json", "X-Actor": "李伟" }, body: JSON.stringify(data)
+    method: "POST", headers: { "Content-Type": "application/json", "X-Actor": actorHeader() }, body: JSON.stringify(data)
   });
   return r.json();
 }
 async function apiUpdate(entity, id, patch) {
   if (IS_DEMO) return DemoAPI.update(ENTITY_DEMO[entity] || entity, id, patch);
   const r = await fetch("/api/" + (ENTITY_URL[entity] || entity) + "/" + id, {
-    method: "PATCH", headers: { "Content-Type": "application/json", "X-Actor": "李伟" }, body: JSON.stringify(patch)
+    method: "PATCH", headers: { "Content-Type": "application/json", "X-Actor": actorHeader() }, body: JSON.stringify(patch)
   });
   return r.json();
 }
 async function apiDelete(entity, id) {
   if (IS_DEMO) return DemoAPI.remove(ENTITY_DEMO[entity] || entity, id);
   const r = await fetch("/api/" + (ENTITY_URL[entity] || entity) + "/" + id, {
-    method: "DELETE", headers: { "X-Actor": "李伟" }
+    method: "DELETE", headers: { "X-Actor": actorHeader() }
   });
   return r.json();
 }
 async function apiGenerate(title, text) {
   if (IS_DEMO) return DemoAPI.generate(text, title);
   const r = await fetch("/api/generate", {
-    method: "POST", headers: { "Content-Type": "application/json", "X-Actor": "李伟" },
+    method: "POST", headers: { "Content-Type": "application/json", "X-Actor": actorHeader() },
     body: JSON.stringify({ title, requirement: text })
   });
   return r.json();
@@ -119,7 +164,7 @@ async function apiExecute(payload) {
     return ex;
   }
   const r = await fetch("/api/execute", {
-    method: "POST", headers: { "Content-Type": "application/json", "X-Actor": "李伟" }, body: JSON.stringify(payload)
+    method: "POST", headers: { "Content-Type": "application/json", "X-Actor": actorHeader() }, body: JSON.stringify(payload)
   });
   return r.json();
 }
@@ -280,7 +325,7 @@ function viewDashboard() {
         ${(d.recent_audit || []).slice(0, 6).map(a => `
           <div style="display:flex;gap:9px;font-size:11.5px;line-height:1.5">
             <span style="color:var(--faint);font-family:var(--font-mono);flex:0 0 86px">${esc((a.timestamp || "").slice(5))}</span>
-            <span><b style="color:var(--text)">${esc(a.actor)}</b> <span style="color:var(--muted)">${esc(a.action)}</span>
+            <span><b style="color:var(--text)">${esc(a.actor)}</b> <span style="color:var(--muted)">${esc(auditAction(a.action))}</span>
             <span style="color:var(--faint)">${esc(a.entity)}</span></span>
           </div>`).join("") || `<div class="empty" style="padding:20px">${t("common.noData")}</div>`}
       </div>
@@ -295,10 +340,13 @@ function kpi(label, value, unit, cls) {
 function gateHtml(g) {
   const color = g.passed ? "var(--green)" : "var(--red)";
   const w = Math.min(100, g.target ? (g.value / g.target) * 100 : 100);
+  const k = "gate." + (g.key || "");
+  const name = g.key && t(k) !== k ? t(k) : g.name;
+  const unit = g.unit === "个" ? t("dashboard.unit.count") : g.unit;
   return `<div class="gate">
     <div class="gate-ico ${g.passed ? "ok" : "no"}">${g.passed ? "✓" : "!"}</div>
     <div class="gate-main">
-      <div class="gate-top"><b>${esc(g.name)}</b><span>${g.value}${g.unit} / ${t("dashboard.target")} ${g.target}${g.unit}</span></div>
+      <div class="gate-top"><b>${esc(name)}</b><span>${g.value}${unit} / ${t("dashboard.target")} ${g.target}${unit}</span></div>
       <div class="gate-track"><div class="gate-fill" style="width:${w}%;background:${color}"></div></div>
     </div>
   </div>`;
@@ -335,11 +383,15 @@ function barsHtml(obj, color) {
 }
 function severityBars(obj) {
   const colorMap = { "致命": "var(--red)", "严重": "#fb923c", "一般": "var(--amber)", "轻微": "var(--faint)" };
-  const keys = Object.keys(obj || {});
+  let keys = Object.keys(obj || {});
   if (!keys.length) return `<div class="empty" style="padding:20px">${t("common.noData")}</div>`;
+  keys.sort((a, b) => {
+    const ia = SEV_ORDER.indexOf(a), ib = SEV_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
   const max = Math.max(...keys.map(k => obj[k]), 1);
   return `<div class="bars">${keys.map(k => `
-    <div class="bar-row"><div class="bar-label">${esc(k)}</div>
+    <div class="bar-row"><div class="bar-label">${esc(sevText(k))}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${obj[k] / max * 100}%;background:${colorMap[k] || "var(--accent)"}"></div></div>
       <div class="bar-val">${obj[k]}</div></div>`).join("")}</div>`;
 }
@@ -871,13 +923,13 @@ function viewDefects() {
     ${cols.map(col => {
       const list = STATE.defects.filter(d => d.status === col);
       return `<div class="kanban-col">
-        <div class="kanban-head"><span style="color:${colors[col]}">${esc(col)}</span><span class="kanban-count">${list.length}</span></div>
+        <div class="kanban-head"><span style="color:${colors[col]}">${esc(statusText(col))}</span><span class="kanban-count">${list.length}</span></div>
         ${list.map(d => `
           <div class="kcard sev-${esc(d.severity)}" onclick="openDefectDetail('${d.id}')">
             <div class="kcard-title">${esc(d.title)}</div>
             <div class="kcard-meta">
               <span class="kcard-id">${esc(d.id)}</span>
-              <span class="badge ${d.severity === "致命" || d.severity === "严重" ? "red" : "gray"}" style="font-size:9px;padding:1px 6px">${esc(d.severity)}</span>
+              <span class="badge ${d.severity === "致命" || d.severity === "严重" ? "red" : "gray"}" style="font-size:9px;padding:1px 6px">${esc(sevText(d.severity))}</span>
               <span>${esc(d.assignee || "")}</span>
             </div>
           </div>`).join("") || `<div class="td-muted" style="font-size:11px;text-align:center;padding:12px">—</div>`}
@@ -888,11 +940,11 @@ function viewDefects() {
 function openDefectDetail(id) {
   const d = STATE.defects.find(x => x.id === id);
   if (!d) return;
-  const statuses = ["新建", "已修复待验证", "重新打开", "已关闭", "拒绝", "延迟"];
+  const statuses = DEFECT_STATUS;
   openDrawer(`${d.id} · ${t("defects.title")}`, `
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px">
       ${badgeSeverity(d.severity)} ${badgePriority(d.priority)}
-      <span class="badge gray">${esc(d.status)}</span>
+      <span class="badge gray">${esc(statusText(d.status))}</span>
     </div>
     <h3 style="font-size:15px;margin-bottom:12px;line-height:1.5">${esc(d.title)}</h3>
     <div class="field"><label>${t("common.description")}</label><div class="case-field">${esc(d.description || "—")}</div></div>
@@ -906,7 +958,7 @@ function openDefectDetail(id) {
     </div>
     <div class="field"><label>${t("common.status")}</label>
       <select class="select" id="f_dstatus" onchange="changeDefectStatus('${d.id}',this.value)">
-        ${statuses.map(s => `<option ${s === d.status ? "selected" : ""}>${s}</option>`).join("")}
+        ${statuses.map(s => `<option value="${esc(s)}" ${s === d.status ? "selected" : ""}>${esc(statusText(s))}</option>`).join("")}
       </select></div>`);
 }
 async function changeDefectStatus(id, status) {
@@ -921,7 +973,7 @@ function openDefectModal() {
       <div class="field"><label>${t("common.project")}</label>
         <select class="select" id="f_pid">${STATE.projects.map(p => `<option value="${p.id}" ${p.id === STATE.projectId ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></div>
       <div class="field"><label>${t("defects.severity")}</label>
-        <select class="select" id="f_sev">${["致命", "严重", "一般", "轻微"].map(v => `<option ${v === "一般" ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+        <select class="select" id="f_sev">${SEV_ORDER.map(v => `<option value="${v}" ${v === "一般" ? "selected" : ""}>${esc(sevText(v))}</option>`).join("")}</select></div>
     </div>
     <div class="field-row">
       <div class="field"><label>${t("defects.assignee")}</label><input class="input" id="f_assignee" value="待分配"></div>
@@ -1193,7 +1245,7 @@ function viewAudit() {
     <tbody>${list.map(a => `<tr>
       <td class="td-muted" style="font-family:var(--font-mono);font-size:11px;white-space:nowrap">${esc(a.timestamp || "")}</td>
       <td><b style="font-weight:600">${esc(a.actor || "")}</b></td>
-      <td><span class="badge gray">${esc(a.action || "")}</span></td>
+      <td><span class="badge gray">${esc(auditAction(a.action))}</span></td>
       <td class="td-id">${esc(a.entity || "")}</td>
       <td class="td-muted">${esc(a.detail || "")}</td>
       <td class="td-muted" style="font-family:var(--font-mono);font-size:10.5px">${esc(a.ip || "")}</td>
@@ -1236,7 +1288,7 @@ function viewSettings() {
     </div>
   </div>
   <div class="panel" style="margin-top:14px">
-    <div class="panel-head"><h3>${t("settings.about")}</h3><span class="panel-hint">v2.0.0</span></div>
+    <div class="panel-head"><h3>${t("settings.about")}</h3><span class="panel-hint">v2.0.1</span></div>
     <p class="td-muted" style="font-size:12px;line-height:1.85">
       TestPilot Enterprise —— 企业级智能测试管理平台。覆盖项目 / 需求 / 用例 / 计划 / 执行 / 缺陷 / 审计全流程，
       内置基于 RAG 的测试用例生成引擎，每条用例均可追溯到知识库原文。<br>

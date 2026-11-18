@@ -6,7 +6,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
-![Tests](https://img.shields.io/badge/tests-58%20passed-success)
+![Tests](https://img.shields.io/badge/tests-60%20passed-success)
 ![Modules](https://img.shields.io/badge/modules-12-6366f1)
 ![i18n](https://img.shields.io/badge/i18n-zh%20%7C%20en%20%7C%20ja-22d3ee)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -42,6 +42,33 @@ It also addresses the most practical problem when adopting AI in QA: **hallucina
 | Japanese UI | [.../?lang=ja](https://jhlking.github.io/testpilot-ai/?lang=ja) | 日本語 |
 
 > The demo runs in a pure frontend mode with data stored in `localStorage`. Create, edit, review, execute, and defect transitions all work, and data survives a refresh. When run locally, it switches to SQLite server mode automatically.
+
+---
+
+
+## 📸 Screenshots
+
+> Rendered for real by `tools/shots.py` (Edge + CDP, 1560×980 viewport) — not mockups.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/shots/01_dashboard_zh.png" alt="Quality Dashboard"><br><sub><b>Quality Dashboard</b> · cross-project KPIs, 4 quality gates (2/4 pass → release blocked), trend, defect severity</sub></td>
+<td width="50%"><img src="docs/shots/03_cases_zh.png" alt="Test Cases"><br><sub><b>Test Cases</b> · 15 cases across 9 types, review / execution status and priority at a glance</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/shots/06_generate_result_zh.png" alt="RAG Studio"><br><sub><b>RAG Studio</b> · every case carries citations and confidence; source snippets one click away</sub></td>
+<td width="50%"><img src="docs/shots/05_defects_zh.png" alt="Defect Board"><br><sub><b>Defect Board</b> · New → Fixed · Pending Verify → Reopened → Closed, colored by severity</sub></td>
+</tr>
+</table>
+
+**Three UI languages** — one codebase, instant switch:
+
+<table>
+<tr>
+<td width="50%"><img src="docs/shots/07_dashboard_en.png" alt="English"><br><sub><b>English</b> · Enterprise Test Management Platform</sub></td>
+<td width="50%"><img src="docs/shots/08_dashboard_ja.png" alt="日本語"><br><sub><b>日本語</b> · エンタープライズ向けテスト管理プラットフォーム</sub></td>
+</tr>
+</table>
 
 ---
 
@@ -150,7 +177,7 @@ flowchart TB
 | Retrieval | Custom BM25 | K1=1.5, B=0.75; Chinese bigram + English words |
 | Frontend | Vanilla HTML/CSS/JS | No framework, no build, no CDN |
 | Charts | Native SVG / conic-gradient | No chart library |
-| Testing | `unittest` | 58 tests including API integration |
+| Testing | `unittest` | 60 tests including API integration |
 | i18n | Custom dictionary + `data-i18n` | 3 languages, localStorage persistence |
 | Deployment | Local / GitHub Pages | Server mode + static mode |
 
@@ -186,7 +213,7 @@ Open **http://127.0.0.1:8765** — the database is created and seeded with enter
 
 ```bash
 python -m unittest discover -s tests -v
-# Ran 58 tests ... OK
+# Ran 60 tests ... OK
 ```
 
 ### 3. Call the API
@@ -303,7 +330,7 @@ Four release gates are built in and shown live on the dashboard and quality repo
 ## 🧪 Test Report
 
 ```
-Ran 58 tests in 1.76s
+Ran 60 tests in 1.75s
 OK
 ```
 
@@ -311,11 +338,12 @@ OK
 |---|---|---|
 | `tests/test_rag.py` | Tokenization, retrieval accuracy, enterprise recall, output structure, 9 case types, hallucination gate | 24 |
 | `tests/test_store.py` | CRUD, ID increment, audit, cascade delete, dashboard aggregation, CSV export | 19 |
-| `tests/test_api.py` | Real HTTP server: health, full CRUD, execution-to-defect, generation, search, export | 15 |
+| `tests/test_api.py` | Real HTTP server: health, full CRUD, execution-to-defect, generation, search, export, actor-header regression | 17 |
 
 **Real defects found and fixed during testing**
 1. Relative-score gating made the hallucination guard ineffective → switched to an absolute BM25 threshold.
 2. Audit IDs were generated from millisecond timestamps and collided under concurrency → added a random suffix.
+3. **Every write operation silently failed in the browser**: the `X-Actor` header carried a Chinese name, so `fetch` threw `Failed to read the 'headers' property ... non ISO-8859-1 code point` — generation, create, update and execute were all broken in server mode (a toast flashed for a second). Fixed by `encodeURIComponent` on the client, `unquote` on the server, plus a regression test. **Unit tests and curl were all green; only a real browser click exposed it.**
 
 ---
 
@@ -338,9 +366,12 @@ testpilot-ai/
 │   ├── app.js                 # 12 views + interactions
 │   ├── i18n.js                # zh / en / ja dictionaries
 │   └── standalone.js          # Pure frontend engine + data (generated)
-├── docs/                      # GitHub Pages static demo (copy of web)
+├── docs/                      # GitHub Pages static demo (built by build_docs)
+│   └── shots/                 # UI screenshots taken by shots.py
 ├── tools/
-│   └── gen_standalone.py      # Generates standalone.js from corpus + seed
+│   ├── gen_standalone.py      # Generates standalone.js from corpus + seed
+│   ├── build_docs.py          # Rebuilds docs/ and refreshes ?v= cache busting
+│   └── shots.py               # Real Edge + CDP screenshots
 ├── tests/
 │   ├── test_rag.py
 │   ├── test_store.py
@@ -394,6 +425,26 @@ COPY . .
 EXPOSE 8765
 CMD ["python", "server.py"]
 ```
+
+---
+
+## 📝 v2.0.1 Changelog
+
+**Fixed (important)**
+- 🐞 Every browser-side write silently failed: a Chinese name in `X-Actor` made `fetch` throw `non ISO-8859-1 code point`. Now `encodeURIComponent` on the client, `unquote` on the server, plus a regression test.
+- 🐞 Generated case titles were detached from the requirement: they now carry the feature name as a prefix (`Payment API｜verify …`), so cases stay attributable when several requirements are mixed.
+
+**i18n completeness**
+- Quality gate names and target units (个 / pcs / 件)
+- Defect severity (Critical / Major / Minor / Trivial) and status (New / Fixed · Pending Verify / Reopened / Closed)
+- Audit action verbs (created / updated / deleted / submitted / reviewed / imported / executed)
+- Case priority badges and defect board column headers
+
+**DX & tooling**
+- Added `tools/build_docs.py`: rebuilds the `docs/` static demo and refreshes `?v=` cache-busting with content hashes
+- Added `tools/shots.py`: real Edge + CDP screenshots with a "content ready" poll, so it never captures an empty shell
+- RAG Studio empty-state panel now fills its column height for a balanced two-column layout
+- Tests 58 → 60 (2 new API regressions)
 
 ---
 

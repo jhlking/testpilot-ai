@@ -97,6 +97,7 @@ class CaseGenerator:
         numbers = _numbers_in(query)
         cases = []
         cid = 1
+        feat = (requirement_title or "").strip()
 
         def add(case_type, title, precond, steps, expected, basis_idx=0, confidence_adj=0.0, priority=None):
             nonlocal cid
@@ -108,7 +109,7 @@ class CaseGenerator:
                 "id": "TC-%03d" % cid,
                 "type": case_type,
                 "type_label": TYPE_LABELS.get(case_type, case_type),
-                "title": title,
+                "title": (feat + "｜" + title) if feat else title,
                 "priority": priority,
                 "precondition": precond,
                 "steps": steps,
@@ -227,6 +228,6 @@ class CaseGenerator:
                 "hallucination_guard": "passed",
                 "signals_detected": sorted(signals),
                 "priority_mix": priority_mix,
-                "engine_version": "2.0.0",
+                "engine_version": "2.0.1",
             },
         }

@@ -100,12 +100,13 @@ function generate(requirement,title){
   for(const t in SIGNALS) for(const w of SIGNALS[t]) if(q.includes(w)){sig.add(t);break;}
   const numbers=q.match(/\d+/g)||[];
   const cases=[];
+  const feat=String(title||"").trim();
   const cit=e=>({id:e.id,title:e.title,category:e.category,content:e.content});
   function add(type,t,pre,steps,exp,bi=0,adj=0,priority){
     const b=usable[Math.min(bi,usable.length-1)];
     const conf=Math.max(0,Math.min(1,b.confidence+adj));
     const pri=priority||(["positive","business","security","idempotency","consistency"].includes(type)?"高":"中");
-    cases.push({id:"TC-"+String(cases.length+1).padStart(3,"0"),type,type_label:TYPES[type],title:t,priority:pri,
+    cases.push({id:"TC-"+String(cases.length+1).padStart(3,"0"),type,type_label:TYPES[type],title:feat?feat+"｜"+t:t,priority:pri,
       precondition:pre,steps,expected:exp,citations:[cit(b)],confidence:conf,needs_review:conf<REVIEW,
       review_status:"draft",execution_status:"untested",assignee:"—"});
   }
@@ -161,7 +162,7 @@ function generate(requirement,title){
   return{accepted:true,refusal:"",cases,evidence:usable,meta:{
     evidence_count:usable.length,case_count:cases.length,avg_confidence:avg,
     needs_review_count:cases.filter(c=>c.needs_review).length,
-    hallucination_guard:"passed",signals_detected:[...sig].sort(),priority_mix:priMix,engine_version:"2.0.0"}};
+    hallucination_guard:"passed",signals_detected:[...sig].sort(),priority_mix:priMix,engine_version:"2.0.1"}};
 }
 
 /* ---------- 与后端 REST 同构的本地数据访问层 ---------- */
@@ -239,10 +240,10 @@ const DemoAPI={
     const coverage=reqs.length?+(covered/reqs.length*100).toFixed(1):0;
     const critical=defects.filter(d=>["致命","严重"].includes(d.severity)&&d.status!=="已关闭").length;
     const gates=[
-      {name:"需求覆盖率",value:coverage,target:90,unit:"%",passed:coverage>=90},
-      {name:"用例评审率",value:cases.length?+(reviewed/cases.length*100).toFixed(1):0,target:80,unit:"%",passed:cases.length?reviewed/cases.length>=0.8:false},
-      {name:"执行通过率",value:passRate,target:95,unit:"%",passed:passRate>=95},
-      {name:"致命/严重未关闭",value:critical,target:0,unit:"个",passed:critical===0}
+      {key:"coverage",name:"需求覆盖率",value:coverage,target:90,unit:"%",passed:coverage>=90},
+      {key:"review",name:"用例评审率",value:cases.length?+(reviewed/cases.length*100).toFixed(1):0,target:80,unit:"%",passed:cases.length?reviewed/cases.length>=0.8:false},
+      {key:"pass_rate",name:"执行通过率",value:passRate,target:95,unit:"%",passed:passRate>=95},
+      {key:"critical_open",name:"致命/严重未关闭",value:critical,target:0,unit:"个",passed:critical===0}
     ];
     const trend={};
     DB.executions.forEach(e=>{const day=(e.executed_at||"").slice(0,10);if(day){(trend[day]=trend[day]||{pass:0,fail:0})[e.result]=(trend[day][e.result]||0)+1;}});

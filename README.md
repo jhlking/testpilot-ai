@@ -6,7 +6,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
-![Tests](https://img.shields.io/badge/tests-58%20passed-success)
+![Tests](https://img.shields.io/badge/tests-60%20passed-success)
 ![Modules](https://img.shields.io/badge/modules-12-6366f1)
 ![i18n](https://img.shields.io/badge/i18n-zh%20%7C%20en%20%7C%20ja-22d3ee)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -42,6 +42,32 @@ TestPilot Enterprise 不是一个"AI 生成几条测试用例"的玩具 Demo，�
 | 日文界面 | [.../?lang=ja](https://jhlking.github.io/testpilot-ai/?lang=ja) | 界面切换 日本語 |
 
 > 演示版为纯前端模式（数据存于浏览器 localStorage），支持新建、编辑、评审、执行、缺陷流转等全部交互，刷新不丢失。本地运行时自动切换为 SQLite 服务端模式。
+
+---
+
+## 📸 界面预览
+
+> 以下截图由 `tools/shots.py` 通过 Edge + CDP 在 1560×980 视口下真实渲染生成，非设计稿。
+
+<table>
+<tr>
+<td width="50%"><img src="docs/shots/01_dashboard_zh.png" alt="质量工作台"><br><sub><b>质量工作台</b> · 跨项目 KPI、四道质量门禁（2/4 达标 → 发布被拦截）、执行趋势、缺陷分级</sub></td>
+<td width="50%"><img src="docs/shots/03_cases_zh.png" alt="用例库"><br><sub><b>用例库</b> · 15 条用例覆盖 9 种类型，评审 / 执行状态与优先级一屏可读</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/shots/06_generate_result_zh.png" alt="RAG 生成台"><br><sub><b>RAG 生成台</b> · 7 条用例全部带证据引用与置信度，左侧可逐条核对知识库原文</sub></td>
+<td width="50%"><img src="docs/shots/05_defects_zh.png" alt="缺陷看板"><br><sub><b>缺陷看板</b> · 新建 → 已修复待验证 → 重新打开 → 已关闭，按严重程度着色</sub></td>
+</tr>
+</table>
+
+**三语界面**（同一份代码，切换即刻生效）：
+
+<table>
+<tr>
+<td width="50%"><img src="docs/shots/07_dashboard_en.png" alt="English"><br><sub><b>English</b> · Enterprise Test Management Platform</sub></td>
+<td width="50%"><img src="docs/shots/08_dashboard_ja.png" alt="日本語"><br><sub><b>日本語</b> · エンタープライズ向けテスト管理プラットフォーム</sub></td>
+</tr>
+</table>
 
 ---
 
@@ -150,7 +176,7 @@ flowchart TB
 | 检索引擎 | 自研 BM25 | K1=1.5, B=0.75，中文 bigram + 英文词 |
 | 前端 | 原生 HTML/CSS/JavaScript | 零框架、零构建、零 CDN |
 | 图表 | 原生 SVG / conic-gradient | 无图表库依赖 |
-| 测试 | `unittest` | 58 个用例，含 API 集成测试 |
+| 测试 | `unittest` | 60 个用例，含 API 集成测试 |
 | 国际化 | 自研字典 + `data-i18n` | 3 种语言，localStorage 记忆 |
 | 部署 | 本地 / GitHub Pages | 服务端模式 + 纯静态模式双形态 |
 
@@ -186,7 +212,7 @@ python server.py
 
 ```bash
 python -m unittest discover -s tests -v
-# Ran 58 tests ... OK
+# Ran 60 tests ... OK
 ```
 
 ### 3. 调用 API
@@ -303,7 +329,7 @@ curl -X POST http://127.0.0.1:8765/api/execute \
 ## 🧪 测试报告
 
 ```
-Ran 58 tests in 1.76s
+Ran 60 tests in 1.75s
 OK
 ```
 
@@ -311,11 +337,12 @@ OK
 |---|---|---|
 | `tests/test_rag.py` | 分词、检索准确性、企业知识召回、生成结构、9 类用例、幻觉闸门 | 24 |
 | `tests/test_store.py` | CRUD、ID 递增、审计、级联删除、仪表盘聚合、CSV 导出 | 19 |
-| `tests/test_api.py` | 真实 HTTP 服务：健康检查、CRUD 全流程、执行转缺陷、生成、检索、导出 | 15 |
+| `tests/test_api.py` | 真实 HTTP 服务：健康检查、CRUD 全流程、执行转缺陷、生成、检索、导出、审计头编码回归 | 17 |
 
 **测试中发现并修复的真实缺陷**
 1. 相对分数做闸门导致幻觉拦截失效 → 改为绝对 BM25 分数闸门；
-2. 审计日志用毫秒时间戳生成 ID，并发下主键冲突 → 加入随机后缀。
+2. 审计日志用毫秒时间戳生成 ID，并发下主键冲突 → 加入随机后缀；
+3. **浏览器端所有写操作静默失效**：`X-Actor` 头直接塞中文姓名，`fetch` 抛 `Failed to read the 'headers' property ... non ISO-8859-1 code point`，导致服务端模式下生成 / 新建 / 修改 / 执行全部失败（页面只闪一下报错 Toast）。修复：前端 `encodeURIComponent` 编码，服务端 `unquote` 还原，并补一条回归用例锁死。**这个缺陷只有在真实浏览器里点一次才会暴露，单元测试与 curl 全部是绿的**。
 
 ---
 
@@ -338,9 +365,12 @@ testpilot-ai/
 │   ├── app.js                 # 12 个视图 + 交互
 │   ├── i18n.js                # 中 / 英 / 日 字典
 │   └── standalone.js          # 纯前端引擎 + 演示数据（自动生成）
-├── docs/                      # GitHub Pages 静态演示（web 的副本）
+├── docs/                      # GitHub Pages 静态演示（build_docs 生成）
+│   └── shots/                 # 界面截图（shots.py 实拍）
 ├── tools/
-│   └── gen_standalone.py      # 从语料 + 种子数据生成 standalone.js
+│   ├── gen_standalone.py      # 从语料 + 种子数据生成 standalone.js
+│   ├── build_docs.py          # 一键重建 docs/ 并刷新 ?v= 缓存戳
+│   └── shots.py               # Edge + CDP 真实渲染截图
 ├── tests/
 │   ├── test_rag.py
 │   ├── test_store.py
@@ -394,6 +424,26 @@ COPY . .
 EXPOSE 8765
 CMD ["python", "server.py"]
 ```
+
+---
+
+## 📝 v2.0.1 更新日志
+
+**修复（重要）**
+- 🐞 浏览器端所有写操作静默失效：`X-Actor` 头含中文导致 `fetch` 抛 `non ISO-8859-1 code point`。前端改为 `encodeURIComponent`，服务端 `unquote` 还原，并新增回归用例。
+- 🐞 用例标题与需求脱节：生成结果统一加功能名前缀（`支付下单接口｜验证…`），多需求混排时不再分不清归属。
+
+**国际化补全**
+- 质量门禁四条指标名称、目标单位（个 / pcs / 件）
+- 缺陷严重程度（Critical / Major / Minor / Trivial）与状态（New / Fixed · Pending Verify / Reopened / Closed）
+- 审计日志动作动词（创建 / 更新 / 删除 / 提交 / 评审 / 导入 / 执行）
+- 用例优先级、缺陷看板列头
+
+**体验与工程化**
+- 补齐 `tools/build_docs.py`：一键重建 `docs/` 静态演示，并用文件哈希刷新 `?v=` 缓存戳
+- 新增 `tools/shots.py`：Edge + CDP 真实渲染截图，含"内容就绪轮询"，避免抓到空壳首屏
+- 生成台等待态面板补足高度，左右两栏视觉更平衡
+- 测试 58 → 60（新增 2 条 API 回归）
 
 ---
 

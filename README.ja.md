@@ -6,7 +6,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
-![Tests](https://img.shields.io/badge/tests-58%20passed-success)
+![Tests](https://img.shields.io/badge/tests-60%20passed-success)
 ![Modules](https://img.shields.io/badge/modules-12-6366f1)
 ![i18n](https://img.shields.io/badge/i18n-zh%20%7C%20en%20%7C%20ja-22d3ee)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -42,6 +42,33 @@ TestPilot Enterprise は「AI がテストケースを数件生成する」だ�
 | 英語 UI | [.../?lang=en](https://jhlking.github.io/testpilot-ai/?lang=en) | English |
 
 > デモは純フロントエンドモードで、データは `localStorage` に保存されます。作成・編集・レビュー・実行・欠陥ステータス変更などの操作が可能で、再読み込みしてもデータは失われません。ローカル実行時は自動的に SQLite サーバーモードに切り替わります。
+
+---
+
+
+## 📸 画面プレビュー
+
+> スクリーンショットは `tools/shots.py`（Edge + CDP、1560×980 ビューポート）による実描画です。
+
+<table>
+<tr>
+<td width="50%"><img src="docs/shots/01_dashboard_zh.png" alt="品質ダッシュボード"><br><sub><b>品質ダッシュボード</b> · プロジェクト横断 KPI、4 つの品質ゲート（2/4 達成 → リリース阻止）、実行トレンド、欠陥重大度</sub></td>
+<td width="50%"><img src="docs/shots/03_cases_zh.png" alt="テストケース"><br><sub><b>テストケース</b> · 9 種類 15 件、レビュー / 実行状況と優先度を一画面で確認</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/shots/06_generate_result_zh.png" alt="RAG スタジオ"><br><sub><b>RAG スタジオ</b> · 全ケースに引用元と信頼度を付与。根拠の原文をその場で確認</sub></td>
+<td width="50%"><img src="docs/shots/05_defects_zh.png" alt="欠陥ボード"><br><sub><b>欠陥ボード</b> · 新規 → 修正済・検証待ち → 再オープン → クローズ、重大度で色分け</sub></td>
+</tr>
+</table>
+
+**3 言語 UI**（同一コードベース、即時切替）：
+
+<table>
+<tr>
+<td width="50%"><img src="docs/shots/07_dashboard_en.png" alt="English"><br><sub><b>English</b> · Enterprise Test Management Platform</sub></td>
+<td width="50%"><img src="docs/shots/08_dashboard_ja.png" alt="日本語"><br><sub><b>日本語</b> · エンタープライズ向けテスト管理プラットフォーム</sub></td>
+</tr>
+</table>
 
 ---
 
@@ -150,7 +177,7 @@ flowchart TB
 | 検索 | 自前 BM25 | K1=1.5、B=0.75、中国語 bigram + 英語語 |
 | フロントエンド | 素の HTML/CSS/JS | フレームワーク・ビルド・CDN なし |
 | チャート | ネイティブ SVG / conic-gradient | チャートライブラリ不要 |
-| テスト | `unittest` | 58 件（API 統合テストを含む） |
+| テスト | `unittest` | 60 件（API 統合テストを含む） |
 | 国際化 | 独自辞書 + `data-i18n` | 3 言語、localStorage 記憶 |
 | デプロイ | ローカル / GitHub Pages | サーバーモード + 静的モード |
 
@@ -186,7 +213,7 @@ python server.py
 
 ```bash
 python -m unittest discover -s tests -v
-# Ran 58 tests ... OK
+# Ran 60 tests ... OK
 ```
 
 ### 3. API 呼び出し
@@ -303,7 +330,7 @@ curl -X POST http://127.0.0.1:8765/api/execute \
 ## 🧪 テストレポート
 
 ```
-Ran 58 tests in 1.76s
+Ran 60 tests in 1.75s
 OK
 ```
 
@@ -311,11 +338,12 @@ OK
 |---|---|---|
 | `tests/test_rag.py` | トークン化、検索精度、企業ナレッジ召回、生成構造、9 種ケース、ハルシネーションゲート | 24 |
 | `tests/test_store.py` | CRUD、ID 採番、監査、連鎖削除、ダッシュボード集計、CSV 出力 | 19 |
-| `tests/test_api.py` | 実 HTTP サーバー：ヘルス、CRUD 一連、実行から欠陥化、生成、検索、出力 | 15 |
+| `tests/test_api.py` | 実 HTTP サーバー：ヘルス、CRUD 一連、実行から欠陥化、生成、検索、出力、Actor ヘッダ回帰 | 17 |
 
 **テストで発見・修正した実際の欠陥**
 1. 相対スコアをゲートに使ったためハルシネーション防止が機能していなかった → 絶対 BM25 スコアゲートに変更。
 2. 監査 ID をミリ秒タイムスタンプから生成していたため同時実行で主キー衝突 → ランダムサフィックスを追加。
+3. **ブラウザからの書き込みが全て無言で失敗**：`X-Actor` ヘッダに中文氏名をそのまま入れたため `fetch` が `non ISO-8859-1 code point` で例外送出。サーバーモードの生成・作成・更新・実行が全滅（画面は一瞬 Toast が出るだけ）。クライアント側 `encodeURIComponent` + サーバー側 `unquote` で修正し、回帰テストを追加。**単体テストも curl も緑で、実ブラウザで一度クリックして初めて露見した欠陥**。
 
 ---
 
@@ -338,9 +366,12 @@ testpilot-ai/
 │   ├── app.js                 # 12 ビュー + インタラクション
 │   ├── i18n.js                # zh / en / ja 辞書
 │   └── standalone.js          # 純フロントエンドエンジン + データ（自動生成）
-├── docs/                      # GitHub Pages 静的デモ（web のコピー）
+├── docs/                      # GitHub Pages 静的デモ（build_docs が生成）
+│   └── shots/                 # UI スクリーンショット（shots.py で実写）
 ├── tools/
-│   └── gen_standalone.py      # コーパス + シードから standalone.js を生成
+│   ├── gen_standalone.py      # コーパス + シードから standalone.js を生成
+│   ├── build_docs.py          # docs/ を再生成し ?v= を更新
+│   └── shots.py               # Edge + CDP による実描画スクリーンショット
 ├── tests/
 │   ├── test_rag.py
 │   ├── test_store.py
@@ -394,6 +425,26 @@ COPY . .
 EXPOSE 8765
 CMD ["python", "server.py"]
 ```
+
+---
+
+## 📝 v2.0.1 更新履歴
+
+**修正（重要）**
+- 🐞 ブラウザからの書き込みが全て無言で失敗：`X-Actor` に中文氏名が入り `fetch` が `non ISO-8859-1 code point` で例外。クライアントは `encodeURIComponent`、サーバーは `unquote` で復元し、回帰テストを追加。
+- 🐞 生成ケースのタイトルが要件と切り離されていた：機能名を接頭辞に付与（`決済API｜検証…`）し、複数要件が混在しても帰属が分かるように。
+
+**多言語対応の補完**
+- 品質ゲート 4 項目の名称と目標単位（个 / pcs / 件）
+- 欠陥の重大度（Critical / Major / Minor / Trivial）とステータス（New / Fixed · Pending Verify / Reopened / Closed）
+- 監査ログの動作（作成 / 更新 / 削除 / 提出 / レビュー / インポート / 実行）
+- ケース優先度バッジ、欠陥ボードの列見出し
+
+**開発体験・ツール**
+- `tools/build_docs.py` を追加：`docs/` の静的デモを一括再生成し、内容ハッシュで `?v=` を更新
+- `tools/shots.py` を追加：Edge + CDP の実描画スクリーンショット（描画完了ポーリング付き）
+- RAG スタジオの待機パネル高さを調整し、2 カラムのバランスを改善
+- テスト 58 → 60（API 回帰を 2 件追加）
 
 ---
 

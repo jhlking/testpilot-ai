@@ -73,7 +73,7 @@ class ApiTest(unittest.TestCase):
         code, d = req("GET", "/api/health")
         self.assertEqual(code, 200)
         self.assertEqual(d["status"], "ok")
-        self.assertEqual(d["version"], "2.0.0")
+        self.assertEqual(d["version"], "2.0.1")
         self.assertGreaterEqual(d["knowledge_docs"], 29)
 
     def test_stats(self):
@@ -206,6 +206,36 @@ class ApiTest(unittest.TestCase):
             text = resp.read().decode("utf-8-sig")
         self.assertIn("用例ID", text)
         self.assertGreater(len(text.splitlines()), 10)
+
+    # ---------- 回归用例 ----------
+    def test_actor_header_percent_encoded(self):
+        """回归：浏览器把中文操作者 encodeURIComponent 放进 X-Actor，
+        服务端必须还原成中文写进审计日志。
+
+        背景：HTTP 头只允许 ISO-8859-1，前端若直接塞中文，fetch 会抛
+        `Failed to read the 'headers' property ... non ISO-8859-1 code point`，
+        导致服务端模式下所有写操作静默失败（生成/新建/修改/执行全部不可用）。
+        """
+        code, d = req("POST", "/api/requirements", {
+            "project_id": "P-001", "title": "回归-编码头部", "description": "x", "priority": "中",
+        }, headers={"X-Actor": "%E6%9D%8E%E4%BC%9F"})
+        self.assertEqual(code, 201)
+        code, logs = req("GET", "/api/audit-logs?limit=50")
+        self.assertEqual(code, 200)
+        hit = [a for a in logs["items"] if a["entity"] == d["id"]]
+        self.assertTrue(hit, "未找到对应审计日志")
+        self.assertEqual(hit[0]["actor"], "李伟")
+
+    def test_generate_case_titles_carry_feature_name(self):
+        """用例标题必须带功能名，避免多需求混在一起时看不出归属。"""
+        code, d = req("POST", "/api/generate", {
+            "title": "支付下单接口",
+            "requirement": "创建支付单，金额单位为分且大于0，签名错误返回401，幂等键重复提交返回同一单号",
+        })
+        self.assertEqual(code, 200)
+        self.assertTrue(d["accepted"])
+        for c in d["cases"]:
+            self.assertTrue(c["title"].startswith("支付下单接口｜"), c["title"])
 
 
 if __name__ == "__main__":

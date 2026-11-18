@@ -28,7 +28,7 @@ REST API（全部返回 JSON）：
 import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 from engine import RAGEngine, CaseGenerator, Store
 
@@ -97,7 +97,15 @@ class Handler(BaseHTTPRequestHandler):
 
     @property
     def actor(self):
-        return self.headers.get("X-Actor", "当前用户")
+        """操作者。浏览器端把中文姓名 encodeURIComponent 后放进头部
+        （HTTP 头只允许 ISO-8859-1），这里还原；兼容明文 ASCII 客户端。"""
+        raw = self.headers.get("X-Actor", "")
+        if not raw:
+            return "当前用户"
+        try:
+            return unquote(raw) or "当前用户"
+        except Exception:
+            return raw
 
     def do_OPTIONS(self):
         self._send(204, None)
@@ -110,7 +118,7 @@ class Handler(BaseHTTPRequestHandler):
         # 系统 / 知识库
         if path == "/api/health":
             return self._json(200, {"status": "ok", "service": "TestPilot Enterprise",
-                                    "engine": "BM25-RAG v2", "version": "2.0.0",
+                                    "engine": "BM25-RAG v2", "version": "2.0.1",
                                     "store": "SQLite", "knowledge_docs": engine.stats["total_documents"]})
         if path == "/api/stats":
             return self._json(200, engine.stats)
@@ -255,7 +263,7 @@ def main():
     print("=" * 62)
     print("  TestPilot Enterprise  ·  企业级测试管理平台")
     print("=" * 62)
-    print("  版本:  v2.0.0")
+    print("  版本:  v2.0.1")
     print("  引擎:  BM25-RAG v2（纯 Python 标准库，离线可用）")
     print("  存储:  SQLite 持久化  |  知识库: %d 篇" % engine.stats["total_documents"])
     print("  演示:  %d 项目 / %d 需求 / %d 用例" % (
